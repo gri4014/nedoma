@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="800" height="450" viewBox="0 0 800 450" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="800" height="450" fill="#F8F9FA"/>
+  
+  <!-- Icon -->
+  <g transform="translate(350, 175)">
+    <path d="M50 0C77.6142 0 100 22.3858 100 50C100 77.6142 77.6142 100 50 100C22.3858 100 0 77.6142 0 50C0 22.3858 22.3858 0 50 0ZM50 10C27.9086 10 10 27.9086 10 50C10 72.0914 27.9086 90 50 90C72.0914 90 90 72.0914 90 50C90 27.9086 72.0914 10 50 10Z" fill="#DEE2E6"/>
+    <path d="M45 25H55V75H45V25ZM25 45H75V55H25V45Z" fill="#DEE2E6"/>
+  </g>
+  
+  <!-- Text -->
+  <text x="400" y="325" font-family="Arial" font-size="16" fill="#6C757D" text-anchor="middle">
+    Изображение отсутствует
+  </text>
+</svg>

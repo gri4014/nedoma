@@ -1,0 +1,26 @@
+-- Create users table with temp_id and telegram_id support
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    temp_id UUID NOT NULL UNIQUE,
+    telegram_id BIGINT UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_active_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_users_temp_id ON users(temp_id);
+CREATE INDEX idx_users_telegram_id ON users(telegram_id);
+
+-- Add trigger to update last_active_at
+CREATE OR REPLACE FUNCTION update_last_active_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.last_active_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_users_last_active
+    BEFORE UPDATE ON users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_last_active_at();

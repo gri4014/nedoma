@@ -1,0 +1,25 @@
+-- Create sessions table for user authentication
+CREATE TABLE sessions (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    CONSTRAINT sessions_token_not_empty CHECK (token != '')
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_token ON sessions(token);
+CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
+
+-- Create function to clean up expired sessions
+CREATE OR REPLACE FUNCTION cleanup_expired_sessions()
+RETURNS void AS $$
+BEGIN
+    DELETE FROM sessions WHERE expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create a scheduled job to clean up expired sessions daily
+SELECT cron.schedule('cleanup-expired-sessions', '0 0 * * *', 'SELECT cleanup_expired_sessions()');

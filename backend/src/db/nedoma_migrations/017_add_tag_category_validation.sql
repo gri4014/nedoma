@@ -1,0 +1,1 @@
+-- No category validation needed as tags are universal

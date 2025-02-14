@@ -1,0 +1,1 @@
+-- No category constraints needed as tags are universal
