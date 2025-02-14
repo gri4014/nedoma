@@ -41,3 +41,6 @@ storage/
 # Logs
 logs/
 *.log
+
+# Allow SQL backups
+!backups/*.sql
