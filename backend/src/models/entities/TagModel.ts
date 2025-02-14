@@ -4,8 +4,6 @@ import { DbResponse } from '../interfaces/database';
 import { logger } from '../../utils/logger';
 import { ITag, CreateTagInput, UpdateTagInput, TagWithEventCount, TagWithStats, TagWithSelectedValues } from '../../types/tag';
 
-
-
 export class TagModel extends BaseModel<ITag> {
   protected tableName = 'tags';
   protected schema = z.object({
