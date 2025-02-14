@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { userPreferenceController } from '../../controllers/user/UserPreferenceController';
+import { userController } from '../../controllers/user/UserController';
 import { swipeController } from '../../controllers/swipe/SwipeController';
 import { authenticateUser } from '../../middleware/auth';
-import { AuthenticatedUserRequest } from '../../types/auth';
 import { Response, RequestHandler } from 'express';
+import { AuthenticatedUserRequest } from '../../types/auth';
 
 const router = Router();
 
@@ -19,68 +19,48 @@ const handleRequest = (
   };
 };
 
+// User creation
+router.post(
+  '/create',
+  handleRequest((req, res) => userController.createUser(req as any, res))
+);
+
 // Category preference routes
 router.get(
   '/preferences/categories',
   authenticateUser,
-  handleRequest((req, res) => userPreferenceController.getUserPreferences(req, res))
+  handleRequest((req, res) => userController.getUserPreferences(req as AuthenticatedUserRequest, res))
 );
 
 router.post(
   '/preferences/categories',
   authenticateUser,
-  handleRequest((req, res) => userPreferenceController.setUserPreferences(req, res))
+  handleRequest((req, res) => userController.setUserPreferences(req as AuthenticatedUserRequest, res))
 );
 
-router.delete(
-  '/preferences/categories',
-  authenticateUser,
-  handleRequest((req, res) => userPreferenceController.deleteUserPreferences(req, res))
-);
-
-// Tag preference routes
-router.get(
-  '/preferences/tags',
-  authenticateUser,
-  handleRequest((req, res) => userPreferenceController.getUserTagPreferences(req, res))
-);
-
-router.post(
-  '/preferences/tags',
-  authenticateUser,
-  handleRequest((req, res) => userPreferenceController.setUserTagPreferences(req, res))
-);
-
-router.delete(
-  '/preferences/tags',
-  authenticateUser,
-  handleRequest((req, res) => userPreferenceController.deleteUserTagPreferences(req, res))
-);
-
-// Swipe routes
+// Keep existing swipe routes
 router.post(
   '/swipes',
   authenticateUser,
-  handleRequest((req, res) => swipeController.recordSwipe(req, res))
+  handleRequest((req, res) => swipeController.recordSwipe(req as AuthenticatedUserRequest, res))
 );
 
 router.get(
   '/swipes/interested',
   authenticateUser,
-  handleRequest((req, res) => swipeController.getInterestedEvents(req, res))
+  handleRequest((req, res) => swipeController.getInterestedEvents(req as AuthenticatedUserRequest, res))
 );
 
 router.get(
   '/swipes/planning',
   authenticateUser,
-  handleRequest((req, res) => swipeController.getPlanningEvents(req, res))
+  handleRequest((req, res) => swipeController.getPlanningEvents(req as AuthenticatedUserRequest, res))
 );
 
 router.get(
   '/swipes/stats',
   authenticateUser,
-  handleRequest((req, res) => swipeController.getSwipeStats(req, res))
+  handleRequest((req, res) => swipeController.getSwipeStats(req as AuthenticatedUserRequest, res))
 );
 
 export default router;
-

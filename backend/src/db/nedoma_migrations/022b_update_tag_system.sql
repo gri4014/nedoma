@@ -16,14 +16,14 @@ ALTER TABLE tags
 -- Create tag_subcategories junction table
 CREATE TABLE IF NOT EXISTS tag_subcategories (
     tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
-    category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+    subcategory_id UUID REFERENCES categories(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (tag_id, category_id)
+    PRIMARY KEY (tag_id, subcategory_id)
 );
 
 -- Add index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_tag_subcategories_category_id ON tag_subcategories(category_id);
+CREATE INDEX IF NOT EXISTS idx_tag_subcategories_subcategory_id ON tag_subcategories(subcategory_id);
 
 -- Update event_tags table to store multiple values
 DO $$ 

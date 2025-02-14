@@ -8,6 +8,9 @@ import LoginForm from './components/auth/LoginForm';
 import AdminEventsPage from './pages/AdminEventsPage';
 import AdminEventFormPage from './pages/AdminEventFormPage';
 import AdminTagsPage from './pages/AdminTagsPage';
+import WelcomePage from './pages/WelcomePage';
+import BubblesPage from './pages/BubblesPage';
+import TagSelectionPage from './pages/TagSelectionPage';
 
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
@@ -17,6 +20,7 @@ const AppRoutes = () => {
       <Route path="/login" element={
         isAuthenticated ? <Navigate to="/admin/events" replace /> : <LoginForm />
       } />
+      {/* Admin Routes */}
       <Route path="/admin/*" element={
         isAuthenticated ? (
           <Routes>
@@ -32,8 +36,13 @@ const AppRoutes = () => {
         )
       } />
 
+      {/* User Routes */}
+      <Route path="/welcome" element={<WelcomePage />} />
+      <Route path="/bubbles" element={<BubblesPage />} />
+      <Route path="/tags" element={<TagSelectionPage />} />
+
       {/* Default Route */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to="/welcome" replace />} />
     </Routes>
   );
 };

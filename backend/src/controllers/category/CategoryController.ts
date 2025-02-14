@@ -215,6 +215,28 @@ export class CategoryController {
       });
     }
   };
+
+  /**
+   * Get category hierarchy
+   */
+  getCategoryHierarchy = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const result = await this.categoryModel.getCategoryHierarchy();
+
+      if (!result.success) {
+        res.status(400).json(result);
+        return;
+      }
+
+      res.json(result);
+    } catch (error) {
+      logger.error('Error in getCategoryHierarchy:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
+      });
+    }
+  };
 }
 
 // Export singleton instance

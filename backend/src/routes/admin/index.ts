@@ -26,13 +26,16 @@ const handleRequest = (
 // Auth routes
 router.post('/login', handleRequest((req, res) => adminAuthController.login(req, res)));
 
+// Category routes (read-only, public)
+router.get('/categories', handleRequest((req, res) => categoryController.getCategories(req, res)));
+router.get('/categories/hierarchy', handleRequest((req, res) => categoryController.getCategoryHierarchy(req, res)));
+router.get('/categories/subcategories', handleRequest((req, res) => categoryController.getSubcategories(req, res)));
+
 // Protected routes
 router.use(...(authenticateAdmin as RequestHandler[]));
 
-// Category routes (read-only)
-router.get('/categories', handleRequest((req, res) => categoryController.getCategories(req, res)));
+// Category routes (admin-only)
 router.get('/categories/with-events', handleRequest((req, res) => categoryController.getCategoriesWithEventCounts(req, res)));
-router.get('/categories/subcategories', handleRequest((req, res) => categoryController.getSubcategories(req, res)));
 
 // Tag routes
 router.get('/tags', handleRequest((req, res) => tagController.getTags(req, res)));
