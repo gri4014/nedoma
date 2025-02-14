@@ -1,5 +1,3 @@
-BEGIN;
-
 -- Drop the old tag_type enum since all tags will be categorical
 DROP TYPE IF EXISTS tag_type CASCADE;
 
@@ -56,7 +54,7 @@ END $$;
 ALTER TABLE event_tags 
   ADD PRIMARY KEY (event_id, tag_id);
 
--- Add trigger to update timestamp on tag_subcategories
+-- Create or replace update timestamp function
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -65,6 +63,8 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Drop and recreate the trigger
+DROP TRIGGER IF EXISTS update_tag_subcategories_updated_at ON tag_subcategories;
 CREATE TRIGGER update_tag_subcategories_updated_at
     BEFORE UPDATE ON tag_subcategories
     FOR EACH ROW
@@ -101,5 +101,3 @@ CREATE TRIGGER validate_event_tag_values
 UPDATE tags 
 SET possible_values = ARRAY['true', 'false']
 WHERE possible_values IS NULL OR possible_values = '{}';
-
-COMMIT;

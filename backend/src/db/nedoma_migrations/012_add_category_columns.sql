@@ -12,22 +12,13 @@ BEGIN
         ALTER TABLE categories ADD COLUMN display_order INTEGER NOT NULL DEFAULT 0;
     END IF;
 
-    -- Update existing categories to have sequential display_order
-    WITH RECURSIVE category_tree AS (
-        -- Base case: root categories
-        SELECT id, ROW_NUMBER() OVER (ORDER BY name) * 10 as new_order
-        FROM categories
-        WHERE parent_id IS NULL
-        
-        UNION ALL
-        
-        -- Recursive case: child categories
-        SELECT c.id, ct.new_order + ROW_NUMBER() OVER (PARTITION BY c.parent_id ORDER BY c.name)
-        FROM categories c
-        JOIN category_tree ct ON c.parent_id = ct.id
-    )
+    -- Simple sequential ordering using a subquery
     UPDATE categories c
-    SET display_order = ct.new_order
-    FROM category_tree ct
-    WHERE c.id = ct.id;
+    SET display_order = s.order_num
+    FROM (
+        SELECT id, (GENERATE_SERIES(1, (SELECT COUNT(*) FROM categories)) * 10) AS order_num
+        FROM categories
+        ORDER BY name
+    ) s
+    WHERE c.id = s.id;
 END $$;
