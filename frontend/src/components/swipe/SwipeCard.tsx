@@ -89,31 +89,31 @@ const DirectionIndicator = styled.div<{ $direction: string; $visible: boolean }>
         return 'transparent';
     }
   }};
-  font-size: 32px;
+  font-size: 48px;
   font-weight: bold;
   opacity: ${({ $visible }) => ($visible ? 0.8 : 0)};
   transition: opacity 0.15s ease;
 
   ${({ $direction }) => {
     switch ($direction) {
-      case 'right':
-        return `
-          top: 50%;
-          right: 20px;
-          transform: translateY(-50%);
-        `;
-      case 'left':
-        return `
-          top: 50%;
-          left: 20px;
-          transform: translateY(-50%);
-        `;
-      case 'up':
-        return `
-          top: 20px;
-          left: 50%;
-          transform: translateX(-50%);
-        `;
+          case 'right':
+            return `
+              top: 50%;
+              left: 35px;
+              transform: translateY(-50%);
+            `;
+          case 'left':
+            return `
+              top: 50%;
+              right: 35px;
+              transform: translateY(-50%);
+            `;
+          case 'up':
+            return `
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+            `;
       default:
         return '';
     }
