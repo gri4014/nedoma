@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { IEvent } from '../types/event';
 
 interface Admin {
   id: string;
@@ -7,7 +8,7 @@ interface Admin {
 }
 
 const api = axios.create({
-  baseURL: (import.meta.env.VITE_API_URL || 'http://localhost:3002') + '/api',
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   }
@@ -53,15 +54,15 @@ const authApi = {
 
 // Event API methods
 const eventApi = {
-  // Get all events with pagination
+  // Get all events with pagination (admin)
   getEvents: (page: number = 1) => 
     api.get(`/admin/events?page=${page}`),
 
-  // Get a single event by ID
+  // Get a single event by ID (admin)
   getEvent: (eventId: string) => 
     api.get(`/admin/events/${eventId}`),
 
-  // Create a new event
+  // Create a new event (admin)
   createEvent: (formData: FormData) => 
     api.post('/admin/events', formData, {
       headers: {
@@ -69,7 +70,7 @@ const eventApi = {
       },
     }),
 
-  // Update an existing event
+  // Update an existing event (admin)
   updateEvent: (eventId: string, formData: FormData) => 
     api.put(`/admin/events/${eventId}`, formData, {
       headers: {
@@ -77,9 +78,42 @@ const eventApi = {
       },
     }),
 
-  // Delete an event
+  // Delete an event (admin)
   deleteEvent: (eventId: string) => 
     api.delete(`/admin/events/${eventId}`),
+};
+
+// User-facing event API methods
+const userEventApi = {
+  // Get active events with pagination
+  getAllEvents: async (page: number = 1, limit: number = 10): Promise<IEvent[]> => {
+    const response = await api.get<any>(`/admin/events?page=${page}&limit=${limit}`);
+    return response.data.data;
+  },
+
+  // Swipe interactions
+  swipeLeft: async (eventId: string): Promise<void> => {
+    await api.post('/user/swipes', { eventId, direction: 'LEFT' });
+  },
+
+  swipeRight: async (eventId: string): Promise<void> => {
+    await api.post('/user/swipes', { eventId, direction: 'RIGHT' });
+  },
+
+  swipeUp: async (eventId: string): Promise<void> => {
+    await api.post('/user/swipes', { eventId, direction: 'UP' });
+  },
+
+  // Get user's interested and planning to go events
+  getInterestedEvents: async (): Promise<IEvent[]> => {
+    const response = await api.get<any>('/user/swipes/interested');
+    return response.data.data;
+  },
+
+  getPlanningEvents: async (): Promise<IEvent[]> => {
+    const response = await api.get<any>('/user/swipes/planning');
+    return response.data.data;
+  },
 };
 
 // Category API methods
@@ -109,4 +143,4 @@ const dashboardApi = {
   getSystemHealth: () => api.get('/system/health')
 };
 
-export { api as default, authApi, dashboardApi, eventApi, categoryApi, tagApi };
+export { api as default, authApi, dashboardApi, eventApi, userEventApi, categoryApi, tagApi };

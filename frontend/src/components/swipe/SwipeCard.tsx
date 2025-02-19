@@ -1,28 +1,26 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { motion, useAnimation, PanInfo } from 'framer-motion';
-import { useDrag } from '@use-gesture/react';
+import { EventCard } from './EventCard';
+import { IEvent } from '../../types/event';
 
 interface SwipeCardProps {
+  event: IEvent;
   onSwipe: (direction: 'left' | 'right' | 'up') => void;
   active?: boolean;
 }
 
 const CardWrapper = styled(motion.div)`
   position: absolute;
-  width: 300px;
-  height: 400px;
+  width: 100%;
+  height: 100%;
   transform-origin: 50% 50%;
-  perspective: 1000px;
-  touch-action: none;
-  will-change: transform;
+  will-change: transform, opacity;
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  -webkit-user-drag: none;
   user-select: none;
+  touch-action: none;
   cursor: grab;
-  z-index: 1;
   
   &:active {
     cursor: grabbing;
@@ -32,50 +30,53 @@ const CardWrapper = styled(motion.div)`
 const TouchArea = styled.div`
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 20;
 `;
 
 const Card = styled.div<{ $swipeDirection: string }>`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+  position: relative;
   width: 100%;
   height: 100%;
-  background: white;
+  pointer-events: none;
+  background: #292929;
   border-radius: 10px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
   user-select: none;
+  overflow: hidden;
+`;
 
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    border-radius: 10px;
-    opacity: ${({ $swipeDirection }) => ($swipeDirection === 'none' ? 0 : 0.15)};
-    background: ${({ $swipeDirection }) => {
-      switch ($swipeDirection) {
-        case 'right':
-          return '#4CAF50';
-        case 'left':
-          return '#F44336';
-        case 'up':
-          return '#2196F3';
-        default:
-          return 'transparent';
-      }
-    }};
-    transition: opacity 0.2s ease;
-  }
+const CardContent = styled.div`
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+`;
+
+const Overlay = styled.div<{ $swipeDirection: string }>`
+  position: absolute;
+  inset: 0;
+  border-radius: 10px;
+  opacity: ${({ $swipeDirection }) => ($swipeDirection === 'none' ? 0 : 0.25)};
+  background: ${({ $swipeDirection }) => {
+    switch ($swipeDirection) {
+      case 'right':
+        return '#4CAF50';
+      case 'left':
+        return '#F44336';
+      case 'up':
+        return '#2196F3';
+      default:
+        return 'transparent';
+    }
+  }};
+  transition: opacity 0.15s ease;
+  z-index: 10;
+  pointer-events: none;
 `;
 
 const DirectionIndicator = styled.div<{ $direction: string; $visible: boolean }>`
   position: absolute;
+  z-index: 15;
   color: ${({ $direction }) => {
     switch ($direction) {
       case 'right':
@@ -91,7 +92,7 @@ const DirectionIndicator = styled.div<{ $direction: string; $visible: boolean }>
   font-size: 32px;
   font-weight: bold;
   opacity: ${({ $visible }) => ($visible ? 0.8 : 0)};
-  transition: opacity 0.2s ease;
+  transition: opacity 0.15s ease;
 
   ${({ $direction }) => {
     switch ($direction) {
@@ -119,24 +120,18 @@ const DirectionIndicator = styled.div<{ $direction: string; $visible: boolean }>
   }}
 `;
 
-
-export const SwipeCard: React.FC<SwipeCardProps> = ({ onSwipe, active = true }) => {
+export const SwipeCard: React.FC<SwipeCardProps> = ({ event, onSwipe, active = true }) => {
   const controls = useAnimation();
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | 'up' | 'none'>('none');
 
-  const handleDrag = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const swipeThreshold = 80; // Lower threshold for easier swipes
-    const velocityThreshold = 0.3; // Lower velocity requirement
-
-    // Update card position, rotation and direction indicator while dragging
-    const rotate = info.offset.x / 20;
+  const handleDrag = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const rotate = info.offset.x * 0.05;
     controls.set({
       x: info.offset.x,
       y: info.offset.y,
-      rotate: rotate
+      rotateZ: rotate
     });
 
-    // Determine swipe direction based on current movement
     if (Math.abs(info.offset.y) > Math.abs(info.offset.x) && info.offset.y < -5) {
       setSwipeDirection('up');
     } else if (Math.abs(info.offset.x) > 5) {
@@ -146,39 +141,45 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ onSwipe, active = true }) 
     }
   };
 
-  const handleDragEnd = (event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const swipeThreshold = 80;
-    const velocityThreshold = 0.3;
+    const velocityThreshold = 150;
 
-    // Reset swipe direction when animation starts
-    setSwipeDirection('none');
-
-    // Determine swipe direction based on offset and velocity
-    if (Math.abs(info.offset.y) > Math.abs(info.offset.x) && info.offset.y < -swipeThreshold && info.velocity.y < -velocityThreshold) {
+    if (Math.abs(info.offset.y) > Math.abs(info.offset.x) && 
+        (info.offset.y < -swipeThreshold || info.velocity.y < -velocityThreshold)) {
       setSwipeDirection('up');
-      // Swipe up
       controls.start({
         y: -window.innerHeight,
-        transition: { duration: 0.1 }
+        opacity: 0,
+        transition: { 
+          duration: 0.15,
+          ease: "easeOut",
+          velocity: info.velocity.y,
+          opacity: { duration: 0.1 }
+        }
       }).then(() => onSwipe('up'));
-    } else if (Math.abs(info.offset.x) > swipeThreshold && Math.abs(info.velocity.x) > velocityThreshold) {
-      // Swipe left or right
+    } else if (Math.abs(info.offset.x) > swipeThreshold || Math.abs(info.velocity.x) > velocityThreshold) {
       const direction = info.offset.x > 0 ? 'right' : 'left';
       setSwipeDirection(direction);
-      const rotation = direction === 'left' ? -10 : 10;
-      
       controls.start({
         x: direction === 'left' ? -window.innerWidth : window.innerWidth,
-        rotate: rotation,
-        transition: { duration: 0.1 }
+        rotateZ: direction === 'left' ? -10 : 10,
+        opacity: 0,
+        transition: { 
+          duration: 0.15,
+          ease: "easeOut",
+          velocity: info.velocity.x,
+          opacity: { duration: 0.1 }
+        }
       }).then(() => onSwipe(direction));
     } else {
-      // Reset position if not swiped far enough
+      setSwipeDirection('none');
       controls.start({
         x: 0,
         y: 0,
-        rotate: 0,
-        transition: { type: "spring", stiffness: 300, damping: 20 }
+        rotateZ: 0,
+        opacity: 1,
+        transition: { duration: 0.15, ease: "easeOut" }
       });
     }
   };
@@ -186,25 +187,26 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ onSwipe, active = true }) 
   return (
     <CardWrapper
       animate={controls}
-      initial={{ scale: 1 }}
-      whileTap={{ scale: 1.05 }}
       drag={active}
-      dragDirectionLock={false}
+      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
+      dragElastic={0.8}
       onDrag={handleDrag}
       onDragEnd={handleDragEnd}
-      dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
-      dragElastic={1}
-      style={{ x: 0, y: 0, touchAction: "none" }}
-      whileHover={{ scale: 1.02 }}
       dragMomentum={false}
-      dragTransition={{ 
-        bounceStiffness: 600, 
-        bounceDamping: 20,
-        power: 0.2 
+      initial={{ opacity: 1 }}
+      style={{
+        x: 0,
+        y: 0,
+        rotateZ: 0,
+        opacity: 1
       }}
     >
       <TouchArea />
       <Card $swipeDirection={swipeDirection}>
+        <CardContent>
+          <EventCard event={event} />
+        </CardContent>
+        <Overlay $swipeDirection={swipeDirection} />
         <DirectionIndicator $direction="left" $visible={swipeDirection === 'left'}>✕</DirectionIndicator>
         <DirectionIndicator $direction="right" $visible={swipeDirection === 'right'}>♥</DirectionIndicator>
         <DirectionIndicator $direction="up" $visible={swipeDirection === 'up'}>↑</DirectionIndicator>

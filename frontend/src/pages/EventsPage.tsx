@@ -1,33 +1,74 @@
-import React from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { CardDeck } from '../components/swipe/CardDeck';
+import { IEvent } from '../types/event';
+import { userEventApi } from '../services/api';
 
 const PageContainer = styled.div`
   width: 100%;
-  height: 100vh;
-  background-color: #f0f2f5;
+  min-height: 100vh;
+  background-color: #121212;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+`;
+
+const DeckContainer = styled.div`
+  width: 100%;
+  max-width: 400px;
+  height: 600px;
+  position: relative;
 `;
 
 export const EventsPage: React.FC = () => {
-  const handleSwipeLeft = () => {
-    console.log('Swiped left - Not interested');
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSwipeLeft = async (event: IEvent) => {
+    try {
+      setIsProcessing(true);
+      await userEventApi.swipeLeft(event.id);
+      console.log('Not interested in:', event.name);
+    } catch (error) {
+      console.error('Error handling left swipe:', error);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleSwipeRight = () => {
-    console.log('Swiped right - Interested');
+  const handleSwipeRight = async (event: IEvent) => {
+    try {
+      setIsProcessing(true);
+      await userEventApi.swipeRight(event.id);
+      console.log('Interested in:', event.name);
+    } catch (error) {
+      console.error('Error handling right swipe:', error);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
-  const handleSwipeUp = () => {
-    console.log('Swiped up - Plan to attend');
+  const handleSwipeUp = async (event: IEvent) => {
+    try {
+      setIsProcessing(true);
+      await userEventApi.swipeUp(event.id);
+      console.log('Planning to attend:', event.name);
+    } catch (error) {
+      console.error('Error handling up swipe:', error);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
     <PageContainer>
-      <CardDeck
-        onSwipeLeft={handleSwipeLeft}
-        onSwipeRight={handleSwipeRight}
-        onSwipeUp={handleSwipeUp}
-      />
+      <DeckContainer>
+        <CardDeck 
+          onSwipeLeft={handleSwipeLeft}
+          onSwipeRight={handleSwipeRight}
+          onSwipeUp={handleSwipeUp}
+        />
+      </DeckContainer>
     </PageContainer>
   );
 };

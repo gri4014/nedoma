@@ -1,104 +1,207 @@
-import React, { useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components';
-import { SwipeCard } from './SwipeCard';
 import { motion, AnimatePresence } from 'framer-motion';
+import { IEvent } from '../../types/event';
+import { userEventApi } from '../../services/api';
+import { SwipeCard } from './SwipeCard';
 
 const DeckContainer = styled.div`
-  position: relative;
   width: 100%;
-  height: 100vh;
+  height: 100%;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #f0f2f5;
-  overflow: hidden;
 `;
 
-const CardStack = styled(motion.div)`
+const CardContainer = styled.div`
+  width: 100%;
+  max-width: 400px;
+  height: 600px;
   position: relative;
-  width: 300px;
-  height: 400px;
-  perspective: 1000px;
 `;
 
-const stackAnimation = {
-  initial: { scale: 0.98, y: 7, opacity: 0.6 },
-  animate: { scale: 1, y: 0, opacity: 1 },
-  exit: { 
-    scale: 0.95,
-    opacity: 0,
-    transition: { duration: 0.2 }
-  },
-  transition: {
-    duration: 0.3,
-    type: "spring",
-    stiffness: 300,
-    damping: 20
-  }
-};
+const StackedCardWrapper = styled(motion.div)<{ $index: number }>`
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  transform-origin: 50% 50%;
+  will-change: transform;
+  pointer-events: ${props => props.$index === 0 ? 'auto' : 'none'};
+`;
+
+const LoadingText = styled.div`
+  color: white;
+  font-size: 18px;
+  text-align: center;
+`;
+
+const ErrorText = styled.div`
+  color: #ff4444;
+  font-size: 18px;
+  text-align: center;
+  padding: 20px;
+`;
 
 interface CardDeckProps {
-  onSwipeLeft?: () => void;
-  onSwipeRight?: () => void;
-  onSwipeUp?: () => void;
+  onSwipeLeft?: (event: IEvent) => void;
+  onSwipeRight?: (event: IEvent) => void;
+  onSwipeUp?: (event: IEvent) => void;
 }
+
+const cardVariants = {
+  enter: (custom: number) => ({
+    scale: 0.95 - custom * 0.05,
+    y: 10 + custom * 10,
+    opacity: 0,
+    transition: { duration: 0 }
+  }),
+  center: (custom: number) => ({
+    scale: 1 - custom * 0.05,
+    y: custom * 10,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 500,
+      damping: 30,
+      mass: 1,
+      opacity: { duration: 0.2 }
+    }
+  }),
+  exit: {
+    opacity: 0,
+    transition: { duration: 0.2 }
+  }
+};
 
 export const CardDeck: React.FC<CardDeckProps> = ({
   onSwipeLeft,
   onSwipeRight,
-  onSwipeUp,
+  onSwipeUp
 }) => {
-  const [cards, setCards] = useState([0, 1, 2]); // Demo cards
+  const [eventQueue, setEventQueue] = useState<IEvent[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMoreEvents, setHasMoreEvents] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const handleSwipe = useCallback((direction: 'left' | 'right' | 'up') => {
-    // Remove the top card
-    setCards((prevCards) => prevCards.slice(1));
+  const fetchEvents = useCallback(async () => {
+    if (loading || !hasMoreEvents) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const fetchedEvents = await userEventApi.getAllEvents(currentPage + 1, 3);
+      if (Array.isArray(fetchedEvents)) {
+        if (fetchedEvents.length === 0) {
+          setHasMoreEvents(false);
+        } else {
+          setEventQueue(prev => [...prev, ...fetchedEvents]);
+          setCurrentPage(prev => prev + 1);
+        }
+      }
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Не удалось загрузить мероприятия');
+      console.error('Error fetching events:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [currentPage, loading, hasMoreEvents]);
 
-    // Call the appropriate callback based on swipe direction
-    switch (direction) {
-      case 'left':
-        onSwipeLeft?.();
-        break;
-      case 'right':
-        onSwipeRight?.();
-        break;
-      case 'up':
-        onSwipeUp?.();
-        break;
+  useEffect(() => {
+    if (eventQueue.length < 3 && hasMoreEvents && !loading) {
+      fetchEvents();
+    }
+  }, [eventQueue.length, hasMoreEvents, loading, fetchEvents]);
+
+  useEffect(() => {
+    const initialFetch = async () => {
+      try {
+        setInitialLoading(true);
+        setError(null);
+        const fetchedEvents = await userEventApi.getAllEvents(1, 3);
+        if (Array.isArray(fetchedEvents)) {
+          setEventQueue(fetchedEvents);
+          setCurrentPage(1);
+          if (fetchedEvents.length === 0) {
+            setHasMoreEvents(false);
+          }
+        }
+      } catch (err: any) {
+        setError(err?.response?.data?.message || 'Не удалось загрузить мероприятия');
+      } finally {
+        setInitialLoading(false);
+      }
+    };
+
+    initialFetch();
+  }, []);
+
+  const handleSwipe = (direction: 'left' | 'right' | 'up') => {
+    if (eventQueue.length === 0) return;
+
+    const currentEvent = eventQueue[0];
+
+    if (direction === 'left' && onSwipeLeft) {
+      onSwipeLeft(currentEvent);
+    } else if (direction === 'right' && onSwipeRight) {
+      onSwipeRight(currentEvent);
+    } else if (direction === 'up' && onSwipeUp) {
+      onSwipeUp(currentEvent);
     }
 
-    // Add a new card to the bottom of the deck
-    setTimeout(() => {
-      setCards((prevCards) => [...prevCards, prevCards[prevCards.length - 1] + 1]);
-    }, 200);
-  }, [onSwipeLeft, onSwipeRight, onSwipeUp]);
+    setEventQueue(prev => prev.slice(1));
+  };
+
+  if (initialLoading) {
+    return (
+      <DeckContainer>
+        <LoadingText>Загрузка мероприятий...</LoadingText>
+      </DeckContainer>
+    );
+  }
+
+  if (error && eventQueue.length === 0) {
+    return (
+      <DeckContainer>
+        <ErrorText>{error}</ErrorText>
+      </DeckContainer>
+    );
+  }
+
+  if (eventQueue.length === 0 && !initialLoading && !loading && !hasMoreEvents) {
+    return (
+      <DeckContainer>
+        <LoadingText>Больше нет мероприятий</LoadingText>
+      </DeckContainer>
+    );
+  }
 
   return (
     <DeckContainer>
-      <CardStack>
-        <AnimatePresence>
-          {cards.map((card, index) => (
-            <motion.div
-              key={card}
-              style={{
-                position: 'absolute',
-                width: '100%',
-                height: '100%',
-                transformOrigin: 'bottom center'
-              }}
-              initial={index === 0 ? "initial" : { scale: 0.98 - (index * 0.03), y: 7 * (index + 1), opacity: 0.6 - (index * 0.1) }}
-              animate={index === 0 ? "animate" : { scale: 0.98 - (index * 0.03), y: 7 * (index + 1), opacity: 0.6 - (index * 0.1) }}
+      <CardContainer>
+        <AnimatePresence initial={false}>
+          {eventQueue.slice(0, 3).map((event, index) => (
+            <StackedCardWrapper
+              key={event.id}
+              $index={index}
+              custom={index}
+              variants={cardVariants}
+              initial="enter"
+              animate="center"
               exit="exit"
-              variants={stackAnimation}
+              style={{ zIndex: eventQueue.length - index }}
             >
-              <SwipeCard
+              <SwipeCard 
+                event={event}
                 onSwipe={handleSwipe}
                 active={index === 0}
               />
-            </motion.div>
+            </StackedCardWrapper>
           ))}
         </AnimatePresence>
-      </CardStack>
+      </CardContainer>
     </DeckContainer>
   );
 };
