@@ -3,6 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import api from '../services/api';
 
+const LoadingOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(249, 247, 254, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  font-size: 18px;
+  color: #007bff;
+`;
+
 const Container = styled.div`
   width: 100vw;
   height: 100vh;
@@ -21,6 +33,23 @@ const BubbleFrame = styled.iframe`
   height: 100%;
   border: none;
   background: #F9F7FE;
+`;
+
+const ErrorMessage = styled.div`
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #dc3545;
+  background: #ffdde1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  max-width: 90%;
+  text-align: center;
 `;
 
 const ContinueButton = styled.button`
@@ -56,11 +85,14 @@ interface Preference {
 const BubblesPage = () => {
   const [preferences, setPreferences] = useState<Preference[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isFetchingCategories, setIsFetchingCategories] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Fetch categories when component mounts
     const fetchCategories = async () => {
+      setError(null);
+      setIsFetchingCategories(true);
       try {
         const response = await api.get('/admin/categories/hierarchy');
         const categoriesWithSubcategories = response.data.data.map((category: any) => ({
@@ -81,6 +113,9 @@ const BubblesPage = () => {
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
+        setError('Ошибка загрузки категорий. Пожалуйста, обновите страницу или попробуйте позже.');
+      } finally {
+        setIsFetchingCategories(false);
       }
     };
 
@@ -108,15 +143,32 @@ const BubblesPage = () => {
   }, []);
 
   const handleContinue = async () => {
+    if (isLoading || isFetchingCategories) return;
+
     setIsLoading(true);
+    setError(null);
+
     try {
       // Filter out zero-level preferences
       const nonZeroPreferences = preferences.filter(p => p.level > 0);
-      await api.post('/user/preferences/categories', { preferences: nonZeroPreferences });
+      
+      if (nonZeroPreferences.length === 0) {
+        setError('Пожалуйста, выберите хотя бы одну категорию.');
+        return;
+      }
+
+      const preferencesToSend = nonZeroPreferences.map(p => ({
+        subcategoryId: p.subcategoryId,
+        level: parseInt(p.level.toString(), 10) // Ensure level is a number
+      }));
+
+      console.log('Sending preferences:', preferencesToSend);
+
+      await api.post('/user/preferences/categories', { preferences: preferencesToSend });
       navigate('/tags');
     } catch (error) {
       console.error('Error saving preferences:', error);
-      // TODO: Add error handling UI
+      setError('Ошибка сохранения предпочтений. Пожалуйста, попробуйте снова.');
     } finally {
       setIsLoading(false);
     }
@@ -124,6 +176,12 @@ const BubblesPage = () => {
 
   return (
     <Container>
+      {(isLoading || isFetchingCategories) && (
+        <LoadingOverlay>
+          {isFetchingCategories ? 'Загрузка категорий...' : 'Сохранение предпочтений...'}
+        </LoadingOverlay>
+      )}
+      {error && <ErrorMessage>{error}</ErrorMessage>}
       <IframeContainer>
         <BubbleFrame
           id="bubbleFrame"
@@ -132,7 +190,7 @@ const BubblesPage = () => {
       </IframeContainer>
       <ContinueButton
         onClick={handleContinue}
-        disabled={isLoading || !preferences.some(p => p.level > 0)}
+        disabled={isLoading || isFetchingCategories || !preferences.some(p => p.level > 0)}
       >
         Продолжить
       </ContinueButton>

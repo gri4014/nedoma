@@ -17,6 +17,15 @@ const Title = styled.h1`
   margin-bottom: 30px;
 `;
 
+const ErrorMessage = styled.div`
+  color: #dc3545;
+  background: #ffdde1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+`;
+
 const SubcategorySection = styled.div`
   margin-bottom: 40px;
   padding: 20px;
@@ -90,7 +99,10 @@ interface Tag {
   id: string;
   name: string;
   possible_values: string[];
-  subcategoryId: string;
+  subcategories: string[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Subcategory {
@@ -98,6 +110,30 @@ interface Subcategory {
   name: string;
   preferenceLevel: number;
   tags: Tag[];
+}
+
+interface CategoryPreference {
+  subcategoryId: string;
+  level: number;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  children: Array<{
+    id: string;
+    name: string;
+  }>;
+}
+
+interface CategoryResponse {
+  success: boolean;
+  data: Category[];
+}
+
+interface TagResponse {
+  success: boolean;
+  data: Tag[];
 }
 
 interface SelectedTag {
@@ -109,37 +145,65 @@ const TagSelectionPage = () => {
   const [subcategories, setSubcategories] = useState<Subcategory[]>([]);
   const [selectedTags, setSelectedTags] = useState<SelectedTag[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setError(null);
         // Get user preferences
         const prefsResponse = await api.get('/user/preferences/categories');
-        const preferences = prefsResponse.data;
+        const preferences = prefsResponse.data as CategoryPreference[];
         
         // Get all tags
         const tagsResponse = await api.get('/admin/tags');
-        const allTags = tagsResponse.data;
+        const tagsData = tagsResponse.data as TagResponse;
+        const allTags = tagsData.data;
 
         // Get all subcategories
         const categoriesResponse = await api.get('/admin/categories');
-        const categories = categoriesResponse.data;
+        const categoriesData = categoriesResponse.data as CategoryResponse;
+
+        // Type checking for API responses
+        if (!Array.isArray(preferences) || !preferences.every(pref => 
+          typeof pref.subcategoryId === 'string' && 
+          typeof pref.level === 'number'
+        )) {
+          throw new Error('User preferences data is not in expected format');
+        }
+
+        if (!tagsData.success || !Array.isArray(tagsData.data)) {
+          throw new Error('Tags data is not in expected format');
+        }
+
+        if (!categoriesData.success || !Array.isArray(categoriesData.data)) {
+          throw new Error('Categories data is not in expected format');
+        }
 
         // Process and organize data
         const selectedSubcategories = preferences
-          .filter((pref: any) => pref.level > 0)
-          .map((pref: any) => {
-            const subcategory = categories
-              .flatMap((cat: any) => cat.subcategories)
-              .find((sub: any) => sub.id === pref.subcategoryId);
+          .filter((pref) => pref.level > 0)
+          .map((pref) => {
+            // Find subcategory by traversing the category hierarchy
+            const foundSubcategory = categoriesData.data.reduce<{ id: string; name: string } | null>((found, category) => {
+              if (found) return found;
+              const matchingSubcategory = category.children.find(
+                (sub) => sub.id === pref.subcategoryId
+              );
+              return matchingSubcategory || null;
+            }, null);
+
+            if (!foundSubcategory) {
+              throw new Error(`Subcategory not found for preference: ${pref.subcategoryId}`);
+            }
 
             return {
-              id: subcategory.id,
-              name: subcategory.name,
+              id: foundSubcategory.id,
+              name: foundSubcategory.name,
               preferenceLevel: pref.level,
               tags: allTags.filter((tag: Tag) => 
-                tag.subcategoryId === subcategory.id
+                tag.subcategories.includes(foundSubcategory.id)
               )
             };
           })
@@ -148,6 +212,7 @@ const TagSelectionPage = () => {
         setSubcategories(selectedSubcategories);
       } catch (error) {
         console.error('Error fetching data:', error);
+        setError('Ошибка загрузки данных. Пожалуйста, попробуйте обновить страницу.');
       }
     };
 
@@ -178,11 +243,13 @@ const TagSelectionPage = () => {
 
   const handleContinue = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       await api.post('/user/preferences/tags', { preferences: selectedTags });
       navigate('/'); // Or wherever the main app page is
     } catch (error) {
       console.error('Error saving tag preferences:', error);
+      setError('Ошибка сохранения тегов. Пожалуйста, попробуйте снова.');
     } finally {
       setIsLoading(false);
     }
@@ -196,6 +263,7 @@ const TagSelectionPage = () => {
   return (
     <Container>
       <Title>Выберите теги</Title>
+      {error && <ErrorMessage>{error}</ErrorMessage>}
       {subcategories.map(subcategory => (
         <SubcategorySection key={subcategory.id}>
           <SubcategoryTitle>{subcategory.name}</SubcategoryTitle>

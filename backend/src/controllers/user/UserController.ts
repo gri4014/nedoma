@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import { UserModel } from '../../models/entities/UserModel';
+import { jwtService } from '../../services/auth/JWTService';
+import { RoleType } from '../../types/rbac';
 
 interface CreateUserRequest extends Request {
   body: {
@@ -29,13 +31,21 @@ class UserController {
       // Check if user already exists
       const existingUser = await UserModel.getUserByTelegramId(telegram_id);
       if (existingUser) {
-        res.status(200).json(existingUser);
+        const token = jwtService.generateToken({ 
+          id: existingUser.id.toString(),
+          role: RoleType.USER
+        });
+        res.status(200).json({ user: existingUser, token });
         return;
       }
 
-      // Create new user
+      // Create new user and generate token
       const user = await UserModel.createUser(telegram_id);
-      res.status(201).json(user);
+      const token = jwtService.generateToken({ 
+        id: user.id.toString(),
+        role: RoleType.USER
+      });
+      res.status(201).json({ user, token });
     } catch (error) {
       console.error('Error creating user:', error);
       res.status(500).json({ error: 'Internal server error' });
@@ -69,7 +79,22 @@ class UserController {
         }
       }
 
-      await UserModel.setUserCategoryPreferences(userId, preferences);
+      console.log('Setting preferences for user:', {
+        userId,
+        preferences,
+        preferenceTypes: preferences.map(p => ({
+          subcategoryId: `${p.subcategoryId} (${typeof p.subcategoryId})`,
+          level: `${p.level} (${typeof p.level})`
+        }))
+      });
+
+      // Convert subcategoryId strings to UUIDs and ensure level is a number
+      const validatedPreferences = preferences.map(pref => ({
+        subcategoryId: pref.subcategoryId,
+        level: parseInt(pref.level.toString(), 10)
+      }));
+
+      await UserModel.setUserCategoryPreferences(userId, validatedPreferences);
       res.status(200).json({ message: 'Preferences updated successfully' });
     } catch (error) {
       console.error('Error setting preferences:', error);

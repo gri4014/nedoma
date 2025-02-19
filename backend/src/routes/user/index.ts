@@ -1,9 +1,16 @@
 import { Router } from 'express';
 import { userController } from '../../controllers/user/UserController';
+import { userPreferenceController } from '../../controllers/user/UserPreferenceController';
 import { swipeController } from '../../controllers/swipe/SwipeController';
 import { authenticateUser } from '../../middleware/auth';
+import { validateRequest } from '../../middleware/validation';
 import { Response, RequestHandler } from 'express';
 import { AuthenticatedUserRequest } from '../../types/auth';
+import {
+  createUserSchema,
+  setCategoryPreferencesSchema,
+  setTagPreferencesSchema
+} from '../../middleware/schemas/userValidation';
 
 const router = Router();
 
@@ -22,6 +29,7 @@ const handleRequest = (
 // User creation
 router.post(
   '/create',
+  validateRequest(createUserSchema),
   handleRequest((req, res) => userController.createUser(req as any, res))
 );
 
@@ -35,10 +43,25 @@ router.get(
 router.post(
   '/preferences/categories',
   authenticateUser,
+  validateRequest(setCategoryPreferencesSchema),
   handleRequest((req, res) => userController.setUserPreferences(req as AuthenticatedUserRequest, res))
 );
 
-// Keep existing swipe routes
+// Tag preference routes
+router.post(
+  '/preferences/tags',
+  authenticateUser,
+  validateRequest(setTagPreferencesSchema),
+  handleRequest((req, res) => userPreferenceController.setUserTagPreferences(req as AuthenticatedUserRequest, res))
+);
+
+router.get(
+  '/preferences/tags',
+  authenticateUser,
+  handleRequest((req, res) => userPreferenceController.getUserTagPreferences(req as AuthenticatedUserRequest, res))
+);
+
+// Swipe routes
 router.post(
   '/swipes',
   authenticateUser,

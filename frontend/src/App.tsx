@@ -11,6 +11,7 @@ import AdminTagsPage from './pages/AdminTagsPage';
 import WelcomePage from './pages/WelcomePage';
 import BubblesPage from './pages/BubblesPage';
 import TagSelectionPage from './pages/TagSelectionPage';
+import { EventsPage } from './pages/EventsPage';
 
 const AppRoutes = () => {
   const { isAuthenticated } = useAuth();
@@ -40,9 +41,12 @@ const AppRoutes = () => {
       <Route path="/welcome" element={<WelcomePage />} />
       <Route path="/bubbles" element={<BubblesPage />} />
       <Route path="/tags" element={<TagSelectionPage />} />
+      <Route path="/events" element={<EventsPage />} />
 
-      {/* Default Route */}
-      <Route path="/" element={<Navigate to="/welcome" replace />} />
+      {/* Default Route - go to bubbles if authenticated, otherwise welcome */}
+      <Route path="/" element={
+        isAuthenticated ? <Navigate to="/events" replace /> : <Navigate to="/welcome" replace />
+      } />
     </Routes>
   );
 };

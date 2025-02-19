@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import api from '../services/api';
@@ -37,18 +37,18 @@ const Input = styled.input`
   }
 `;
 
-const ContinueButton = styled.button<{ isValid: boolean }>`
-  background: ${props => props.isValid ? '#007bff' : '#ccc'};
+const ContinueButton = styled.button<{ $isValid: boolean }>`
+  background: ${props => props.$isValid ? '#007bff' : '#ccc'};
   color: white;
   border: none;
   border-radius: 8px;
   padding: 12px 30px;
   font-size: 16px;
-  cursor: ${props => props.isValid ? 'pointer' : 'not-allowed'};
+  cursor: ${props => props.$isValid ? 'pointer' : 'not-allowed'};
   transition: background 0.2s;
 
   &:hover {
-    background: ${props => props.isValid ? '#0056b3' : '#ccc'};
+    background: ${props => props.$isValid ? '#0056b3' : '#ccc'};
   }
 `;
 
@@ -61,8 +61,29 @@ const ErrorMessage = styled.div`
 const WelcomePage = () => {
   const [telegramId, setTelegramId] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const checkExistingToken = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+          // Try to get user preferences to verify token is valid
+          // Just validate the token by making a request
+          await api.get('/user/preferences/categories');
+        } catch (error) {
+          // Token invalid or expired, remove it
+          localStorage.removeItem('token');
+          api.defaults.headers.common['Authorization'] = '';
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkExistingToken();
+  }, [navigate]);
 
   const isValidTelegramId = (id: string) => {
     // Telegram IDs are positive numbers
@@ -70,6 +91,7 @@ const WelcomePage = () => {
   };
 
   const handleContinue = async () => {
+    if (isLoading) return;
     if (!isValidTelegramId(telegramId)) {
       setError('Пожалуйста, введите корректный ID Telegram');
       return;
@@ -79,11 +101,31 @@ const WelcomePage = () => {
     setError('');
 
     try {
-      await api.post('/user/create', { telegram_id: telegramId });
-      navigate('/bubbles');
+      const response = await api.post('/user/create', { telegram_id: telegramId });
+      if (!response.data.token) {
+        throw new Error('No token received from server');
+      }
+      
+      // Store the token and set up API authorization
+      const token = response.data.token;
+      localStorage.setItem('token', token);
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+
+      // Clear any existing error
+      setError('');
+
+      // Navigate to bubbles page
+      navigate('/bubbles', { replace: true });
     } catch (error) {
       console.error('Error creating user:', error);
-      setError('Произошла ошибка. Пожалуйста, попробуйте снова.');
+      if (error instanceof Error) {
+        setError(error.message === 'No token received from server'
+          ? 'Ошибка авторизации. Пожалуйста, попробуйте снова.'
+          : 'Произошла ошибка. Пожалуйста, попробуйте снова.'
+        );
+      } else {
+        setError('Произошла ошибка. Пожалуйста, попробуйте снова.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +160,7 @@ const WelcomePage = () => {
       <ContinueButton
         onClick={handleContinue}
         disabled={!isValidTelegramId(telegramId) || isLoading}
-        isValid={isValidTelegramId(telegramId) && !isLoading}
+        $isValid={isValidTelegramId(telegramId) && !isLoading}
       >
         Продолжить
       </ContinueButton>
