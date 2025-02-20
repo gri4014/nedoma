@@ -1,5 +1,13 @@
 import axios from 'axios';
 import { IEvent } from '../types/event';
+import { IRecommendationResponse } from '../types/recommendation';
+
+// Enum values matching backend's SwipeDirection
+const SwipeDirection = {
+  LEFT: 'LEFT',
+  RIGHT: 'RIGHT',
+  UP: 'UP'
+} as const;
 
 interface Admin {
   id: string;
@@ -85,23 +93,69 @@ const eventApi = {
 
 // User-facing event API methods
 const userEventApi = {
-  // Get active events with pagination
+  // Get recommended events with pagination
   getAllEvents: async (page: number = 1, limit: number = 10): Promise<IEvent[]> => {
-    const response = await api.get<any>(`/admin/events?page=${page}&limit=${limit}`);
-    return response.data.data;
+    try {
+      const response = await api.get<{ success: boolean, data: { event: IEvent, score: any }[] }>(`/user/recommendations?page=${page}&limit=${limit}`);
+      if (response.data.success && response.data.data) {
+        return response.data.data.map(result => result.event);
+      }
+      throw new Error('Invalid response format');
+    } catch (error: any) {
+      console.error('Recommendation error:', error);
+      // Only fall back if it's a 404 (no recommendations found)
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        const fallbackResponse = await api.get<any>(`/admin/events?page=${page}&limit=${limit}`);
+        return fallbackResponse.data.data;
+      }
+      throw error; // Re-throw other errors to show the real issue
+    }
   },
 
   // Swipe interactions
   swipeLeft: async (eventId: string): Promise<void> => {
-    await api.post('/user/swipes', { eventId, direction: 'LEFT' });
+    try {
+      const response = await api.post('/user/swipes', { 
+        eventId: eventId, 
+        direction: SwipeDirection.LEFT 
+      });
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to record swipe');
+      }
+    } catch (error) {
+      console.error('Error recording left swipe:', error);
+      throw error;
+    }
   },
 
   swipeRight: async (eventId: string): Promise<void> => {
-    await api.post('/user/swipes', { eventId, direction: 'RIGHT' });
+    try {
+      const response = await api.post('/user/swipes', { 
+        eventId: eventId, 
+        direction: SwipeDirection.RIGHT 
+      });
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to record swipe');
+      }
+    } catch (error) {
+      console.error('Error recording right swipe:', error);
+      throw error;
+    }
   },
 
   swipeUp: async (eventId: string): Promise<void> => {
-    await api.post('/user/swipes', { eventId, direction: 'UP' });
+    try {
+      const response = await api.post('/user/swipes', { 
+        eventId: eventId, 
+        direction: SwipeDirection.UP 
+      });
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to record swipe');
+      }
+    } catch (error) {
+      console.error('Error recording up swipe:', error);
+      throw error;
+    }
   },
 
   // Get user's interested and planning to go events

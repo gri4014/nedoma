@@ -28,6 +28,8 @@ export interface IRecommendationFilters {
   isFree?: boolean;
   maxPrice?: number;
   excludeEventIds?: string[];
+  offset?: number;
+  limit?: number;
 }
 
 export interface IRecommendationResult {

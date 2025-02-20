@@ -246,7 +246,7 @@ const TagSelectionPage = () => {
     setError(null);
     try {
       await api.post('/user/preferences/tags', { preferences: selectedTags });
-      navigate('/'); // Or wherever the main app page is
+      navigate('/events');
     } catch (error) {
       console.error('Error saving tag preferences:', error);
       setError('Ошибка сохранения тегов. Пожалуйста, попробуйте снова.');
@@ -273,7 +273,7 @@ const TagSelectionPage = () => {
               <TagOptionsContainer>
                 {tag.possible_values.map(value => (
                   <TagOption
-                    key={value}
+                    key={`${subcategory.id}-${tag.id}-${value}`}
                     isSelected={isTagValueSelected(tag.id, value)}
                     onClick={() => handleTagValueToggle(tag.id, value)}
                   >

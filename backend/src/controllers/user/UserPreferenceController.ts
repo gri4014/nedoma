@@ -7,7 +7,79 @@ interface TagPreference {
   values: string[];
 }
 
+interface CategoryPreference {
+  subcategoryId: string;
+  level: number;
+}
+
 class UserPreferenceController {
+  async setUserCategoryPreferences(req: AuthenticatedUserRequest, res: Response): Promise<void> {
+    const userId = req.user?.id;
+    const { preferences } = req.body as { preferences: CategoryPreference[] };
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    if (!Array.isArray(preferences)) {
+      res.status(400).json({ error: 'Invalid preferences format' });
+      return;
+    }
+
+    // Start a transaction
+    await db.query('BEGIN');
+
+    try {
+      // Delete existing preferences
+      await db.query(
+        'DELETE FROM user_category_preferences WHERE user_id = $1',
+        [userId]
+      );
+
+      // Insert new preferences if any
+      if (preferences.length > 0) {
+        for (const pref of preferences) {
+          await db.query(
+            `INSERT INTO user_category_preferences 
+             (user_id, subcategory_id, level)
+             VALUES ($1, $2, $3)`,
+            [userId, pref.subcategoryId, pref.level]
+          );
+        }
+      }
+
+      await db.query('COMMIT');
+      res.status(200).json({ message: 'Category preferences updated successfully' });
+    } catch (error) {
+      await db.query('ROLLBACK');
+      console.error('Error setting category preferences:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
+  async getUserCategoryPreferences(req: AuthenticatedUserRequest, res: Response): Promise<void> {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+
+    try {
+      const result = await db.query(`
+        SELECT subcategory_id as "subcategoryId", level
+        FROM user_category_preferences
+        WHERE user_id = $1
+      `, [userId]);
+
+      res.status(200).json(result.rows);
+    } catch (error) {
+      console.error('Error getting category preferences:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  }
+
   async setUserTagPreferences(req: AuthenticatedUserRequest, res: Response): Promise<void> {
     const userId = req.user?.id;
     const { preferences } = req.body as { preferences: TagPreference[] };

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { userController } from '../../controllers/user/UserController';
 import { userPreferenceController } from '../../controllers/user/UserPreferenceController';
 import { swipeController } from '../../controllers/swipe/SwipeController';
+import { recommendationController } from '../../controllers/recommendation/RecommendationController';
 import { authenticateUser } from '../../middleware/auth';
 import { validateRequest } from '../../middleware/validation';
 import { Response, RequestHandler } from 'express';
@@ -37,14 +38,14 @@ router.post(
 router.get(
   '/preferences/categories',
   authenticateUser,
-  handleRequest((req, res) => userController.getUserPreferences(req as AuthenticatedUserRequest, res))
+  handleRequest((req, res) => userPreferenceController.getUserCategoryPreferences(req as AuthenticatedUserRequest, res))
 );
 
 router.post(
   '/preferences/categories',
   authenticateUser,
   validateRequest(setCategoryPreferencesSchema),
-  handleRequest((req, res) => userController.setUserPreferences(req as AuthenticatedUserRequest, res))
+  handleRequest((req, res) => userPreferenceController.setUserCategoryPreferences(req as AuthenticatedUserRequest, res))
 );
 
 // Tag preference routes
@@ -84,6 +85,13 @@ router.get(
   '/swipes/stats',
   authenticateUser,
   handleRequest((req, res) => swipeController.getSwipeStats(req as AuthenticatedUserRequest, res))
+);
+
+// Recommendation routes
+router.get(
+  '/recommendations',
+  authenticateUser,
+  handleRequest((req, res) => recommendationController.getRecommendedEvents(req as AuthenticatedUserRequest, res))
 );
 
 export default router;

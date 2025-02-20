@@ -12,17 +12,17 @@ const CardContainer = styled.div`
   background: #292929;
 `;
 
-const ImageSection = styled.div<{ imageSrc?: string }>`
+const ImageSection = styled.div<{ $imageUrl?: string }>`
   position: relative;
   width: 100%;
   height: 100%;
   background-color: #4CAF50;
-  background-image: ${props => props.imageSrc ? `url(${props.imageSrc})` : 'none'};
   background-size: cover;
   background-position: center;
   transition: background-image 0.3s ease;
   border-top-left-radius: 12px;
   border-top-right-radius: 12px;
+  background-image: ${props => props.$imageUrl ? `url(${props.$imageUrl})` : 'none'};
 `;
 
 const ImagePlaceholder = styled.div`
@@ -152,7 +152,9 @@ interface EventCardProps {
 export const EventCard: React.FC<EventCardProps> = ({ event }) => {
   return (
     <CardContainer>
-      <ImageSection imageSrc={event?.image_urls?.[0]?.toString() || undefined}>
+      <ImageSection
+        $imageUrl={typeof event?.image_urls?.[0] === 'string' ? event.image_urls[0] : undefined}
+      >
         {!event?.image_urls?.[0] && (
           <ImagePlaceholder>
             Нет изображения
@@ -184,8 +186,8 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
         <ContentStack>
           <Description>{event?.short_description || 'Загрузка описания...'}</Description>
           <TagsContainer>
-            {Object.entries(event?.tags || {}).map(([tagName, values], index) => (
-              <TagButton key={index}>{values[0]}</TagButton>
+            {Object.entries(event?.tags || {}).map(([tagId, values]) => (
+              <TagButton key={`${event.id}-${tagId}`}>{values[0]}</TagButton>
             ))}
           </TagsContainer>
         </ContentStack>

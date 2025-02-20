@@ -2,7 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IEvent } from '../../types/event';
-import { userEventApi } from '../../services/api';
+import { IRecommendationResponse } from '../../types/recommendation';
+import api from '../../services/api';
+import { AxiosResponse } from 'axios';
 import { SwipeCard } from './SwipeCard';
 
 const DeckContainer = styled.div`
@@ -92,14 +94,26 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     try {
       setLoading(true);
       setError(null);
-      const fetchedEvents = await userEventApi.getAllEvents(currentPage + 1, 3);
-      if (Array.isArray(fetchedEvents)) {
-        if (fetchedEvents.length === 0) {
-          setHasMoreEvents(false);
-        } else {
-          setEventQueue(prev => [...prev, ...fetchedEvents]);
-          setCurrentPage(prev => prev + 1);
-        }
+      const response = await api.get<IRecommendationResponse>(`/user/recommendations?page=${currentPage}&limit=3`);
+      const events = response.data.events || [];
+      
+      // If we got less than 3 events (our requested limit), there are no more events
+      if (events.length < 3) {
+        setHasMoreEvents(false);
+      }
+      
+      // Only add events we haven't seen yet
+      const newEvents = events.filter(item => 
+        !eventQueue.some(queuedEvent => queuedEvent.id === item.event.id)
+      ).map(item => item.event
+      );
+      
+      if (newEvents.length > 0) {
+        setEventQueue(prev => [...prev, ...newEvents]);
+        setCurrentPage(prev => prev + 1);
+      } else if (hasMoreEvents) {
+        // If we got no new events but hasMoreEvents is true, try next page
+        fetchEvents();
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Не удалось загрузить мероприятия');
@@ -107,7 +121,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [currentPage, loading, hasMoreEvents]);
+  }, [currentPage, loading, hasMoreEvents, eventQueue]);
 
   useEffect(() => {
     if (eventQueue.length < 3 && hasMoreEvents && !loading) {
@@ -120,13 +134,14 @@ export const CardDeck: React.FC<CardDeckProps> = ({
       try {
         setInitialLoading(true);
         setError(null);
-        const fetchedEvents = await userEventApi.getAllEvents(1, 3);
-        if (Array.isArray(fetchedEvents)) {
-          setEventQueue(fetchedEvents);
-          setCurrentPage(1);
-          if (fetchedEvents.length === 0) {
-            setHasMoreEvents(false);
-          }
+        const response = await api.get<IRecommendationResponse>('/user/recommendations?page=1&limit=3');
+        const events = response.data.events || [];
+        setEventQueue(events.map(item => item.event));
+        setCurrentPage(1);
+        
+        // If we got less than 3 events (our requested limit), there are no more events
+        if (events.length < 3) {
+          setHasMoreEvents(false);
         }
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Не удалось загрузить мероприятия');

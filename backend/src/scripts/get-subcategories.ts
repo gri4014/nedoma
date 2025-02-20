@@ -4,9 +4,9 @@ async function getSubcategories() {
     try {
         console.log('Fetching subcategories...');
         const result = await db.query(`
-            SELECT id, name, parent_id, is_subcategory 
-            FROM categories 
-            WHERE is_subcategory = true
+            SELECT s.id, s.name, c.name as category_name
+            FROM subcategories s
+            JOIN categories c ON s.category_id = c.id
             LIMIT 5
         `);
         

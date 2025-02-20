@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import { AuthenticatedRequest } from '../../middleware/auth';
+import { AuthenticatedUserRequest } from '../../types/auth';
 import { RecommendationModel } from '../../models/entities/RecommendationModel';
 import { logger } from '../../utils/logger';
 
@@ -13,7 +13,7 @@ export class RecommendationController {
   /**
    * Get user's preferences
    */
-  getUserPreferences = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  getUserPreferences = async (req: AuthenticatedUserRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
 
@@ -45,7 +45,7 @@ export class RecommendationController {
   /**
    * Get recommended events
    */
-  getRecommendedEvents = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  getRecommendedEvents = async (req: AuthenticatedUserRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
 
@@ -57,6 +57,10 @@ export class RecommendationController {
         return;
       }
 
+      // Parse pagination parameters
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 10;
+
       // Parse filters from query parameters
       const filters = {
         startDate: req.query.startDate ? new Date(req.query.startDate as string) : undefined,
@@ -64,7 +68,9 @@ export class RecommendationController {
         isFree: req.query.isFree === 'true',
         maxPrice: req.query.maxPrice ? parseFloat(req.query.maxPrice as string) : undefined,
         excludeEventIds: req.query.excludeEventIds ? 
-          (req.query.excludeEventIds as string).split(',') : undefined
+          (req.query.excludeEventIds as string).split(',') : undefined,
+        // Add pagination to filters
+        offset: (page - 1) * limit
       };
 
       // Parse settings from query parameters
@@ -75,8 +81,7 @@ export class RecommendationController {
           parseFloat(req.query.tagWeight as string) : undefined,
         min_category_interest: req.query.minCategoryInterest ? 
           parseInt(req.query.minCategoryInterest as string) : undefined,
-        max_events: req.query.maxEvents ? 
-          parseInt(req.query.maxEvents as string) : undefined
+        max_events: limit // Use the requested limit
       };
 
       const result = await this.recommendationModel.getRecommendedEvents(
@@ -103,7 +108,7 @@ export class RecommendationController {
   /**
    * Get daily event digest
    */
-  getDailyDigest = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  getDailyDigest = async (req: AuthenticatedUserRequest, res: Response): Promise<void> => {
     try {
       const userId = req.user?.id;
 

@@ -178,6 +178,18 @@ export class RecommendationModel extends BaseModel<IEvent> {
 
       // Add condition to only show events that haven't passed their end relevance date
       conditions.push(`e.relevance_start >= CURRENT_TIMESTAMP`);
+      
+      // Add condition for minimum category interest level
+      if (finalSettings.min_category_interest !== undefined) {
+        conditions.push(`es.subcategory_id = ANY($${paramCount})`);
+        values.push(
+          // Get subcategory IDs where user interest >= min_category_interest
+          Object.entries(preferences.category_interests)
+            .filter(([_, level]) => level >= finalSettings.min_category_interest)
+            .map(([id]) => id)
+        );
+        paramCount++;
+      }
 
       // Apply date range filters if provided
       if (filters.startDate) {
@@ -209,55 +221,82 @@ export class RecommendationModel extends BaseModel<IEvent> {
         values.push(...filters.excludeEventIds);
       }
 
-      // Add minimum category interest condition
-      const interestedCategories = Object.entries(preferences.category_interests)
-        .filter(([_, level]) => level >= finalSettings.min_category_interest)
-        .map(([id]) => id);
-
-      if (interestedCategories.length > 0) {
-        conditions.push(`e.category_id IN (${interestedCategories.map(() => `$${paramCount++}`).join(', ')})`);
-        values.push(...interestedCategories);
-      }
-
-      // Get events with their tags
+      
+      // Get events with their tags that match user's subcategory preferences
       const query = `
+        WITH event_subcategories AS (
+          SELECT DISTINCT e.id as event_id, sc.id as subcategory_id
+          FROM events e
+          JOIN event_subcategories esc ON e.id = esc.event_id
+          JOIN subcategories sc ON esc.subcategory_id = sc.id
+          WHERE sc.id = ANY(
+            SELECT subcategory_id 
+            FROM user_category_preferences 
+            WHERE user_id = $${paramCount} AND level > 0
+          )
+        ),
+        event_tags AS (
+          SELECT 
+            e.id as event_id,
+            array_agg(DISTINCT et.tag_id || ':' || et.value) as tag_values,
+            array_agg(DISTINCT et.tag_id) as tag_ids,
+            array_agg(DISTINCT et.value) as values
+          FROM events e
+          LEFT JOIN event_tags et ON e.id = et.event_id
+          GROUP BY e.id
+        )
         SELECT 
           e.*,
-          array_agg(et.tag_id || ':' || et.value) as tag_values
+          et.tag_values,
+          es.subcategory_id,
+          et.tag_ids,
+          et.values
         FROM events e
+        JOIN event_subcategories es ON e.id = es.event_id
+        JOIN subcategories sc ON es.subcategory_id = sc.id
         LEFT JOIN event_tags et ON e.id = et.event_id
+        LEFT JOIN user_category_preferences ucp ON sc.id = ucp.subcategory_id AND ucp.user_id = $${paramCount}
         WHERE ${conditions.join(' AND ')}
-        GROUP BY e.id
+        ${filters.offset ? `OFFSET ${filters.offset}` : ''}
       `;
 
       const result = await this.db.query(query, values);
 
       // Calculate scores and sort events
-      const scoredEvents: IRecommendationResult[] = result.rows.map(row => {
-        // Convert tag_values array to tags object
-        const tags: Record<string, boolean | string> = {};
-        if (row.tag_values[0] !== null) {
-          row.tag_values.forEach((tv: string) => {
-            const [tagId, value] = tv.split(':');
-            tags[tagId] = value === 'true' ? true : value === 'false' ? false : value;
-          });
-        }
-        delete row.tag_values;
+        const scoredEvents: IRecommendationResult[] = result.rows.map(row => {
+          // Convert tag_values array to tags object
+          const tags: Record<string, string[]> = {};
+          if (row.tag_values?.[0] !== null) {
+            row.tag_values.forEach((tv: string) => {
+              const [tagId, value] = tv.split(':');
+              if (!tags[tagId]) {
+                tags[tagId] = [];
+              }
+              tags[tagId].push(value);
+            });
+          }
+          delete row.tag_values;
 
-        // Calculate category score
-        const categoryScore = preferences.category_interests[row.category_id] || 0;
+        // Calculate category score based on subcategory
+        const subcategoryScore = preferences.category_interests[row.subcategory_id] || 0;
 
         // Calculate tag score
         let tagScore = 0;
         let tagCount = 0;
-        Object.entries(tags).forEach(([tagId, value]) => {
+        Object.entries(tags).forEach(([tagId, values]) => {
           const preference = preferences.tag_preferences[tagId];
           if (preference) {
             tagCount++;
-            if (typeof value === 'boolean' && preference.boolean_preference === value) {
-              tagScore++;
-            } else if (typeof value === 'string' && preference.categorical_preference === value) {
-              tagScore++;
+            if (preference.boolean_preference !== undefined) {
+              // For boolean tags, check if any value matches the preference
+              if (values.some(v => (v === 'true') === preference.boolean_preference)) {
+                tagScore++;
+              }
+            } else if (preference.categorical_preference) {
+              // For categorical tags, check if any value matches the preference
+              if (values.includes(preference.categorical_preference)) {
+                tagScore++;
+              }
             }
           }
         });
@@ -266,9 +305,9 @@ export class RecommendationModel extends BaseModel<IEvent> {
 
         const score: IRecommendationScore = {
           event_id: row.id,
-          category_score: categoryScore / 3, // Normalize to 0-1
+          category_score: subcategoryScore / 3, // Normalize to 0-1
           tag_score: normalizedTagScore,
-          total_score: (categoryScore / 3 * finalSettings.category_weight) + 
+          total_score: (subcategoryScore / 3 * finalSettings.category_weight) + 
                       (normalizedTagScore * finalSettings.tag_weight)
         };
 
@@ -278,13 +317,69 @@ export class RecommendationModel extends BaseModel<IEvent> {
         };
       });
 
-      // Sort by total score and limit
-      scoredEvents.sort((a, b) => b.score.total_score - a.score.total_score);
-      const limitedEvents = scoredEvents.slice(0, finalSettings.max_events);
+      // First, gather all unique subcategories from the events
+      const allSubcategories = new Set<string>();
+      scoredEvents.forEach(event => {
+        event.event.subcategories.forEach(subcatId => {
+          allSubcategories.add(subcatId);
+        });
+      });
+
+      // Group events by subcategory
+      const eventsBySubcategory: Record<string, typeof scoredEvents> = {};
+      allSubcategories.forEach(subcatId => {
+        eventsBySubcategory[subcatId] = scoredEvents.filter(event => 
+          event.event.subcategories.includes(subcatId)
+        );
+      });
+
+      // Sort events within each subcategory by score
+      Object.values(eventsBySubcategory).forEach(events => {
+        events.sort((a, b) => b.score.total_score - a.score.total_score);
+      });
+
+      // Sort subcategories by user's preference level
+      const sortedSubcategories = Array.from(allSubcategories)
+        .sort((a, b) => {
+          const prefA = preferences.category_interests[a] || 0;
+          const prefB = preferences.category_interests[b] || 0;
+          return prefB - prefA;
+        });
+
+      // Create a set to track unique events (since events can be in multiple subcategories)
+      const seenEvents = new Set<string>();
+      const interleavedEvents: typeof scoredEvents = [];
+      let hasMore = true;
+      let index = 0;
+
+      while (hasMore && interleavedEvents.length < finalSettings.max_events) {
+        hasMore = false;
+        for (const subcatId of sortedSubcategories) {
+          const events = eventsBySubcategory[subcatId];
+          // Find next unseen event in this subcategory
+          while (index < events.length) {
+            const event = events[index];
+            if (!seenEvents.has(event.event.id)) {
+              interleavedEvents.push(event);
+              seenEvents.add(event.event.id);
+              hasMore = true;
+              if (interleavedEvents.length >= finalSettings.max_events) {
+                break;
+              }
+              break;
+            }
+            index++;
+          }
+          if (interleavedEvents.length >= finalSettings.max_events) {
+            break;
+          }
+        }
+        index++;
+      }
 
       return {
         success: true,
-        data: limitedEvents
+        data: interleavedEvents
       };
     } catch (error) {
       logger.error('Error getting recommended events:', error);
