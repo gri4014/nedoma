@@ -26,12 +26,15 @@ export class AdminModel extends BaseModel<IAdmin> {
     try {
       const { login, password } = credentials;
 
+      console.log('Validating admin credentials for login:', login);
+
       const result = await this.db.query(
-        'SELECT * FROM admins WHERE login = $1 AND is_active = true',
+        'SELECT * FROM admins WHERE login = $1',
         [login]
       );
 
       if (result.rowCount === 0) {
+        console.log('Admin not found:', login);
         return {
           success: false,
           error: 'Invalid credentials'
@@ -39,9 +42,22 @@ export class AdminModel extends BaseModel<IAdmin> {
       }
 
       const admin = result.rows[0];
+
+      if (!admin.is_active) {
+        console.log('Admin account is inactive:', login);
+        return {
+          success: false,
+          error: 'Account is inactive'
+        };
+      }
+
+      console.log('Current password:', password);
+      console.log('Stored hash:', admin.password_hash);
       const isValidPassword = await bcrypt.compare(password, admin.password_hash);
+      console.log('Password validation result:', isValidPassword);
 
       if (!isValidPassword) {
+        console.log('Invalid password for admin:', login);
         return {
           success: false,
           error: 'Invalid credentials'
@@ -54,6 +70,7 @@ export class AdminModel extends BaseModel<IAdmin> {
         [admin.id]
       );
 
+      console.log('Admin login successful:', login);
       return {
         success: true,
         data: {

@@ -12,7 +12,7 @@ const SwipeDirection = {
 interface Admin {
   id: string;
   login: string;
-  lastLogin: string | null;
+  last_login: string | null;
 }
 
 const api = axios.create({

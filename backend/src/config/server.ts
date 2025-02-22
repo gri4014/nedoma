@@ -19,6 +19,12 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-ID']
 }));
 app.use(express.json());
+app.use((req, res, next) => {
+  if (req.path === '/api/admin/login') {
+    console.log('Login request body:', req.body);
+  }
+  next();
+});
 app.use(express.urlencoded({ extended: true }));
 
 // Log static file requests

@@ -1,80 +1,47 @@
-const axios = require('axios');
+const bcrypt = require('bcrypt');
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const pool = new Pool({
+  host: process.env.POSTGRES_HOST || 'localhost',
+  port: parseInt(process.env.POSTGRES_PORT || '5432'),
+  database: process.env.POSTGRES_DB || 'nedoma_copy',
+  user: process.env.POSTGRES_USER || 'grigorii',
+  password: process.env.POSTGRES_PASSWORD,
+});
 
 async function testLogin() {
-  console.log('Starting login test...');
-  console.log('Testing endpoint: http://localhost:3002/api/developer/auth/login');
-  console.log('Credentials being tested:', {
-    login: 'admin',
-    password: 'Admin@123'
-  });
-
+  const client = await pool.connect();
   try {
-    // Attempt login directly without health check
-    console.log('\nAttempting login...');
-    const response = await axios.post('http://localhost:3002/api/developer/auth/login', {
-      login: 'admin',
-      password: 'Admin@123'
-    }, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      validateStatus: false // Don't throw on non-2xx responses
-    });
+    // Get current password hash
+    const result = await client.query(
+      'SELECT password_hash FROM admins WHERE login = $1',
+      ['admin']
+    );
+    const storedHash = result.rows[0]?.password_hash;
+    console.log('Stored hash:', storedHash);
 
-    // Log detailed response info
-    console.log('\nResponse details:');
-    console.log('Status:', response.status);
-    console.log('Status Text:', response.statusText);
-    console.log('Headers:', JSON.stringify(response.headers, null, 2));
-    console.log('Data:', JSON.stringify(response.data, null, 2));
+    // Test password
+    const password = 'Admin@123';
+    console.log('Testing password:', password);
 
-    if (response.status === 200) {
-      console.log('\n✓ Login successful');
-      console.log('JWT Token received:', response.data.token ? 'Yes' : 'No');
-    } else {
-      console.error('\n✗ Login failed');
-      console.error('Status Code:', response.status);
-      if (response.data && response.data.message) {
-        console.error('Error Message:', response.data.message);
-      }
-      if (response.data && response.data.errors) {
-        console.error('Validation Errors:', response.data.errors);
-      }
-    }
+    // Test validation
+    const isValid = await bcrypt.compare(password, storedHash);
+    console.log('Password validation result:', isValid);
+
+    // Generate a new hash for the same password
+    const newHash = await bcrypt.hash(password, 10);
+    console.log('New hash generated:', newHash);
+
+    // Verify new hash
+    const isValidNew = await bcrypt.compare(password, newHash);
+    console.log('New hash validation:', isValidNew);
 
   } catch (error) {
-    console.error('\n✗ Request failed:');
-    if (error.response) {
-      // Server responded with non-2xx status
-      console.error('Server Response:', {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        data: error.response.data
-      });
-    } else if (error.request) {
-      // Request was made but no response received
-      console.error('No response received from server');
-      console.error('Request details:', {
-        method: error.request.method,
-        path: error.request.path,
-        headers: error.request.headers
-      });
-    } else {
-      // Error in setting up the request
-      console.error('Error setting up request:', error.message);
-    }
-    
-    if (error.code) {
-      console.error('Error code:', error.code);
-    }
-    if (error.config) {
-      console.error('Request configuration:', {
-        url: error.config.url,
-        method: error.config.method,
-        headers: error.config.headers,
-        data: error.config.data
-      });
-    }
+    console.error('Error:', error);
+  } finally {
+    client.release();
+    pool.end();
   }
 }
 

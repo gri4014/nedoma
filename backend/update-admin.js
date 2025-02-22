@@ -13,8 +13,8 @@ const pool = new Pool({
 const updateAdmin = async () => {
   const client = await pool.connect();
   try {
-    // Generate new password hash
-    const password = 'admin123';
+    // Get password from command line arguments
+    const password = process.argv[2] || 'admin123';
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Update admin password

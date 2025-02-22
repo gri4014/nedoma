@@ -1,4 +1,6 @@
 import { Router, Response } from 'express';
+import { validate } from '../../middleware/expressValidation';
+import { adminLoginSchema } from '../../middleware/schemas/adminValidation';
 import { RequestHandler } from 'express-serve-static-core';
 import { AuthenticatedAdminRequest } from '../../types/auth';
 import { adminAuthController } from '../../controllers/auth/AdminAuthController';
@@ -24,7 +26,10 @@ const handleRequest = (
 };
 
 // Auth routes
-router.post('/login', handleRequest((req, res) => adminAuthController.login(req, res)));
+router.post('/login', 
+  validate(adminLoginSchema),
+  handleRequest((req, res) => adminAuthController.login(req, res))
+);
 
 // Category routes (read-only, public)
 router.get('/categories', handleRequest((req, res) => categoryController.getCategories(req, res)));

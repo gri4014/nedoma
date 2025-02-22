@@ -22,6 +22,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       const response = await authApi.login({ login, password });
       localStorage.setItem('token', response.token);
+      localStorage.setItem('admin', JSON.stringify(response.admin));
       setIsAuthenticated(true);
     } catch (error) {
       console.error('Login error:', error);
@@ -31,6 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = useCallback(() => {
     localStorage.removeItem('token');
+    localStorage.removeItem('admin');
     setIsAuthenticated(false);
   }, []);
 
