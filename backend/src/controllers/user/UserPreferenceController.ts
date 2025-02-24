@@ -68,7 +68,7 @@ class UserPreferenceController {
 
     try {
       const result = await db.query(`
-        SELECT subcategory_id as "subcategoryId", level
+        SELECT subcategory_id as "subcategoryId", level as "level"
         FROM user_category_preferences
         WHERE user_id = $1
       `, [userId]);
