@@ -327,50 +327,79 @@ export class RecommendationModel extends BaseModel<IEvent> {
             score: tagMatchScore
           });
         } else {
-          // Check if user has any preferences for this event's tags
-          let hasPreferences = false;
-          let matchingTags = 0;
-          let totalTags = 0;
-
-          Object.entries(tags).forEach(([tagId, values]) => {
-            if (preferences.tag_preferences[tagId]) {
-              hasPreferences = true;
-              totalTags++;
-              const preference = preferences.tag_preferences[tagId];
-              
-              if (preference.boolean_preference !== undefined) {
-                // For boolean tags, check if any value matches the preference
-                if (values.some(v => (v === 'true') === preference.boolean_preference)) {
-                  matchingTags++;
-                  hasMatchingTags = true;
-                }
-              } else if (preference.categorical_preference) {
-                // For categorical tags, check if any value matches any preferred value
-                if (values.some(v => preference.categorical_preference?.includes(v))) {
-                  matchingTags++;
-                  hasMatchingTags = true;
-                }
-              }
-            }
+          // Log tag values and preferences for debugging
+          logger.debug('Comparing event tags with user preferences:', {
+            eventId: row.id,
+            tags,
+            userPreferences: preferences.tag_preferences
           });
 
-          if (hasPreferences) {
-            // Case 3: Has tags and user has preferences
-            tagMatchScore = matchingTags / totalTags;
-            logger.debug('Event has tag matches:', {
-              eventId: row.id,
-              subcategoryId: row.subcategory_id,
-              matchingTags,
-              totalTags,
-              score: tagMatchScore
-            });
-          } else {
+          // Calculate tag scores
+          const tagScores = Object.entries(tags).map(([tagId, values]) => {
+            const preference = preferences.tag_preferences[tagId];
+            if (!preference) {
+              logger.debug('No preference found for tag:', { tagId, values });
+              return 0.5; // Neutral score for tags without preferences
+            }
+
+            if (preference.categorical_preference) {
+              // For categorical tags, any match is considered positive
+              const matchedValues = values.filter(v => 
+                preference.categorical_preference?.includes(v)
+              );
+              const hasMatch = matchedValues.length > 0;
+              hasMatchingTags ||= hasMatch;
+              
+              logger.debug('Categorical tag comparison:', {
+                tagId,
+                eventValues: values,
+                preferredValues: preference.categorical_preference,
+                matchedValues,
+                hasMatch
+              });
+              
+              // Return a higher base score (0.7) for any match, plus bonus for more matches
+              return hasMatch ? 0.7 + (0.3 * matchedValues.length / values.length) : 0.3;
+            }
+
+            if (preference.boolean_preference !== undefined) {
+              const matches = values.some(v => (v === 'true') === preference.boolean_preference);
+              hasMatchingTags ||= matches;
+              
+              logger.debug('Boolean tag comparison:', {
+                tagId,
+                eventValues: values,
+                preferredValue: preference.boolean_preference,
+                matches
+              });
+              
+              return matches ? 1.0 : 0.0;
+            }
+
+            logger.debug('No valid preference type found:', { tagId, preference });
+            return 0.5; // Default neutral score
+          });
+
+          if (tagScores.length === 0) {
             // Case 2: Has tags but no user preferences
             tagMatchScore = 0.5;
             logger.debug('Event has tags but no user preferences:', {
               eventId: row.id,
               subcategoryId: row.subcategory_id,
               score: tagMatchScore
+            });
+          } else {
+            // Case 3: Calculate weighted average of tag scores, but ensure at least 0.3
+            tagMatchScore = Math.max(
+              tagScores.reduce((sum, score) => sum + score, 0) / tagScores.length,
+              0.3
+            );
+            logger.debug('Event tag match calculated:', {
+              eventId: row.id,
+              subcategoryId: row.subcategory_id,
+              scores: tagScores,
+              finalScore: tagMatchScore,
+              hasMatchingTags
             });
           }
         }

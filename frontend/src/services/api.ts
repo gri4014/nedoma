@@ -93,34 +93,37 @@ const eventApi = {
 
 // User-facing event API methods
 const userEventApi = {
-  // Get recommended events with pagination
+  // Get all events (no recommendations)
   getAllEvents: async (page: number = 1, limit: number = 10, excludeEventIds: string[] = []): Promise<IEvent[]> => {
-    try {
-      const queryParams = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString()
-      });
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
 
-      if (excludeEventIds.length > 0) {
-        queryParams.append('excludeEventIds', excludeEventIds.join(','));
-      }
-
-      const response = await api.get<{ success: boolean, data: { event: IEvent, score: any }[] }>(
-        `/user/recommendations?${queryParams.toString()}`
-      );
-      if (response.data.success && response.data.data) {
-        return response.data.data.map(result => result.event);
-      }
-      throw new Error('Invalid response format');
-    } catch (error: any) {
-      console.error('Recommendation error:', error);
-      // Fall back to regular events for 404 (no recommendations) or 400 (recommendation errors)
-      if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 400)) {
-        const fallbackResponse = await api.get<any>(`/admin/events?page=${page}&limit=${limit}`);
-        return fallbackResponse.data.data;
-      }
-      return []; // Return empty array for other errors to prevent infinite requests
+    if (excludeEventIds.length > 0) {
+      queryParams.append('excludeEventIds', excludeEventIds.join(','));
     }
+
+    const response = await api.get<{ success: boolean, data: IEvent[] }>(`/admin/events?${queryParams.toString()}`);
+    if (response.data.success) {
+      return response.data.data;
+    }
+    return [];
+  },
+
+  // Get recommended events with pagination
+  getRecommendedEvents: async (page: number = 1, limit: number = 10, excludeEventIds: string[] = []): Promise<IRecommendationResponse> => {
+    const queryParams = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString()
+    });
+
+    if (excludeEventIds.length > 0) {
+      queryParams.append('excludeEventIds', excludeEventIds.join(','));
+    }
+
+    const response = await api.get<IRecommendationResponse>(`/user/recommendations?${queryParams.toString()}`);
+    return response.data;
   },
 
   // Swipe interactions

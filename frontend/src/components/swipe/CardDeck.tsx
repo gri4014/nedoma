@@ -3,7 +3,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IEvent } from '../../types/event';
-import { IRecommendationResponse } from '../../types/recommendation';
+import { IRecommendationResponse, IRecommendationScore } from '../../types/recommendation';
 import { userEventApi } from '../../services/api';
 import { SwipeCard } from './SwipeCard';
 
@@ -114,7 +114,20 @@ export const CardDeck: React.FC<CardDeckProps> = ({
       setLoading(true);
       setError(null);
       
-      const events = await userEventApi.getAllEvents(currentPage, 3, swipedEventIds);
+      const response = await userEventApi.getRecommendedEvents(currentPage, 3, swipedEventIds);
+if (!response.success) {
+  throw new Error(response.error || 'Failed to get recommendations');
+}
+const events = response.data.map(rec => rec.event);
+
+// Update hasMoreEvents based on both response and filtering
+if (events.length === 0) {
+  setHasMoreEvents(false);
+  if (eventQueue.length === 0) {
+    setNoMoreCardsToShow(true);
+  }
+  return;
+}
       
       if (!events || events.length === 0) {
         setHasMoreEvents(false);
@@ -131,19 +144,23 @@ export const CardDeck: React.FC<CardDeckProps> = ({
         // Mark these events as seen
         newEvents.forEach(event => seenEventIds.add(event.id));
         
-        setEventQueue(prev => [...prev, ...newEvents]);
+        setEventQueue(prev => {
+          const updatedQueue = [...prev, ...newEvents];
+          if (updatedQueue.length > 0) {
+            setHasMoreEvents(true); // Keep loading while we have events
+            setNoMoreCardsToShow(false);
+          }
+          return updatedQueue;
+        });
         setCurrentPage(prev => prev + 1);
         retryCountRef.current = 0;
-      } else if (events.length < 3 || retryCountRef.current >= MAX_RETRIES) {
-        // If we got less than 3 events or have retried max times, no more events
+      } else if (events.length === 0 || retryCountRef.current >= MAX_RETRIES) {
+        // Only mark as no more events if we truly got zero events or hit retry limit
         setHasMoreEvents(false);
         if (eventQueue.length === 0) {
           setNoMoreCardsToShow(true);
         }
       }
-
-      // Update hasMoreEvents based on both response and filtering
-      setHasMoreEvents(events.length === 3 && newEvents.length > 0);
       
     } catch (err: any) {
       console.error('Error fetching events:', err);
@@ -158,12 +175,14 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     }
   }, 500); // Reduced from 2000ms to 500ms for smoother loading
 
-  // Fetch more events when queue is getting low
+  // Fetch more events when queue is getting low or empty
   useEffect(() => {
-    if (eventQueue.length < 3 && hasMoreEvents && !loading && !error) { // Changed from <2 to <3
+    if (eventQueue.length < 3 && hasMoreEvents && !loading && !error && !noMoreCardsToShow) {
+      // Reset retry count when queue needs refill
+      retryCountRef.current = 0;
       debouncedFetchEvents();
     }
-  }, [eventQueue.length, hasMoreEvents, loading, error, debouncedFetchEvents]);
+  }, [eventQueue.length, hasMoreEvents, loading, error, noMoreCardsToShow, debouncedFetchEvents]);
 
   // Cleanup function to cancel any pending requests
   useEffect(() => {
@@ -180,7 +199,18 @@ export const CardDeck: React.FC<CardDeckProps> = ({
         setInitialLoading(true);
         setError(null);
         
-        const events = await userEventApi.getAllEvents(1, 6, swipedEventIds); // Increased from 3 to 6
+        const response = await userEventApi.getRecommendedEvents(1, 6, swipedEventIds);
+if (!response.success) {
+  throw new Error(response.error || 'Failed to get recommendations');
+}
+const events = response.data.map(rec => rec.event);
+
+// If we got no events, show empty state
+if (events.length === 0) {
+  setNoMoreCardsToShow(true);
+  setHasMoreEvents(false);
+  return;
+}
         
         // Filter out any swiped events and mark them as seen
         const filteredEvents = events.filter(event => !swipedEventIds.includes(event.id));
@@ -254,6 +284,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     );
   }
 
+  // Show error only if we have no events to display
   if (error && eventQueue.length === 0) {
     return (
       <DeckContainer>
@@ -262,7 +293,8 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     );
   }
 
-  if ((eventQueue.length === 0 && !initialLoading && !loading && !hasMoreEvents) || noMoreCardsToShow) {
+  // Show empty state only when we're certain there are no more events
+  if (noMoreCardsToShow && eventQueue.length === 0 && !loading && !initialLoading) {
     return (
       <DeckContainer>
         <LoadingText>На данный момент это все карточки</LoadingText>
