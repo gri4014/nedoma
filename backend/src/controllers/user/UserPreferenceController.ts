@@ -27,6 +27,32 @@ class UserPreferenceController {
       return;
     }
 
+    // Validate that all subcategories exist and are active
+    try {
+      const subcategoryIds = preferences.map(p => p.subcategoryId);
+      const result = await db.query(
+        `SELECT id FROM subcategories 
+         WHERE id = ANY($1) 
+         AND is_active = true`,
+        [subcategoryIds]
+      );
+
+      const validSubcategoryIds = new Set(result.rows.map(row => row.id));
+      const invalidSubcategoryIds = subcategoryIds.filter(id => !validSubcategoryIds.has(id));
+
+      if (invalidSubcategoryIds.length > 0) {
+        res.status(400).json({ 
+          error: 'Invalid subcategories', 
+          invalidIds: invalidSubcategoryIds 
+        });
+        return;
+      }
+    } catch (error) {
+      console.error('Error validating subcategories:', error);
+      res.status(500).json({ error: 'Internal server error' });
+      return;
+    }
+
     // Start a transaction
     await db.query('BEGIN');
 

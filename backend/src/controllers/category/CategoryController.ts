@@ -10,11 +10,10 @@ export class CategoryController {
   getSubcategories = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     try {
       const query = `
-        SELECT id, name
-        FROM categories
-        WHERE parent_id IS NOT NULL 
-          AND is_active = true 
-        ORDER BY display_order;
+        SELECT s.id, s.name
+        FROM subcategories s
+        WHERE s.is_active = true 
+        ORDER BY s.display_order;
       `;
 
       // Explicitly type the response for clarity

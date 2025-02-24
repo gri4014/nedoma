@@ -154,6 +154,7 @@ const BubblesPage = () => {
       
       if (nonZeroPreferences.length === 0) {
         setError('Пожалуйста, выберите хотя бы одну категорию.');
+        setIsLoading(false);
         return;
       }
 
@@ -166,9 +167,17 @@ const BubblesPage = () => {
 
       await api.post('/user/preferences/categories', { preferences: preferencesToSend });
       navigate('/tags');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving preferences:', error);
-      setError('Ошибка сохранения предпочтений. Пожалуйста, попробуйте снова.');
+      
+      // Handle the new validation error format
+      if (error.response?.data?.error === 'Invalid subcategories') {
+        setError('Некоторые категории стали недоступны. Пожалуйста, обновите страницу и попробуйте снова.');
+        // Re-fetch categories to ensure we have the latest data
+        window.location.reload();
+      } else {
+        setError('Ошибка сохранения предпочтений. Пожалуйста, попробуйте позже.');
+      }
     } finally {
       setIsLoading(false);
     }

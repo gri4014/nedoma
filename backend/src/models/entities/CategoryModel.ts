@@ -193,55 +193,41 @@ export class CategoryModel extends BaseModel<ICategory> {
   async getCategoryHierarchy(): Promise<DbResponse<Array<ICategory & { children: ICategory[] }>>> {
     try {
       const query = `
-        WITH RECURSIVE category_tree AS (
-          -- Base case: get all root categories (no parent)
-          SELECT 
-            c.*,
-            0 as level
-          FROM categories c
-          WHERE c.parent_id IS NULL AND c.is_active = true
-          
-          UNION ALL
-          
-          -- Recursive case: get children
-          SELECT 
-            c.*,
-            ct.level + 1
-          FROM categories c
-          JOIN category_tree ct ON c.parent_id = ct.id
-          WHERE c.is_active = true
-        )
-        SELECT *
-        FROM category_tree
-        ORDER BY level, display_order;
+        SELECT 
+          c.id,
+          c.name,
+          c.display_order,
+          c.is_active,
+          c.created_at,
+          c.updated_at,
+          json_agg(
+            json_build_object(
+              'id', s.id,
+              'name', s.name,
+              'display_order', s.display_order,
+              'is_active', s.is_active,
+              'created_at', s.created_at,
+              'updated_at', s.updated_at
+            )
+          ) FILTER (WHERE s.id IS NOT NULL) as children
+        FROM categories c
+        LEFT JOIN subcategories s ON s.category_id = c.id AND s.is_active = true
+        WHERE c.is_active = true
+        GROUP BY c.id, c.name, c.display_order, c.is_active, c.created_at, c.updated_at
+        ORDER BY c.display_order;
       `;
 
       const result = await this.db.query(query);
 
-      // Build hierarchy
-      const categoryMap = new Map<string, ICategory & { children: ICategory[] }>();
-      const rootCategories: Array<ICategory & { children: ICategory[] }> = [];
-
-      result.rows.forEach(row => {
-        const category = {
-          ...row,
-          children: []
-        };
-        categoryMap.set(category.id, category);
-
-        if (category.parent_id === null) {
-          rootCategories.push(category);
-        } else {
-          const parent = categoryMap.get(category.parent_id);
-          if (parent) {
-            parent.children.push(category);
-          }
-        }
-      });
+      // Process the results to handle null children arrays
+      const categories = result.rows.map(row => ({
+        ...row,
+        children: row.children || []
+      }));
 
       return {
         success: true,
-        data: rootCategories
+        data: categories
       };
     } catch (error) {
       logger.error('Error getting category hierarchy:', error);

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { userController } from '../../controllers/user/UserController';
+import { categoryController } from '../../controllers/category/CategoryController';
 import { userPreferenceController } from '../../controllers/user/UserPreferenceController';
 import { swipeController } from '../../controllers/swipe/SwipeController';
 import { recommendationController } from '../../controllers/recommendation/RecommendationController';
@@ -26,6 +27,12 @@ const handleRequest = (
     }
   };
 };
+
+// Get subcategories
+router.get(
+  '/subcategories',
+  handleRequest((req, res) => categoryController.getSubcategories(req as AuthenticatedUserRequest, res))
+);
 
 // User creation
 router.post(
