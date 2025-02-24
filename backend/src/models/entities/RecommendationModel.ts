@@ -249,7 +249,8 @@ export class RecommendationModel extends BaseModel<IEvent> {
           SELECT 
             e.id as event_id,
             array_agg(DISTINCT jsonb_build_object('tag_id', et.tag_id, 'values', et.selected_values)) as tag_values,
-            array_agg(DISTINCT et.tag_id) as tag_ids
+            array_agg(DISTINCT et.tag_id) as tag_ids,
+            COUNT(DISTINCT et.tag_id) as tag_count
           FROM events e
           LEFT JOIN event_tags et ON e.id = et.event_id
           GROUP BY e.id
@@ -258,7 +259,8 @@ export class RecommendationModel extends BaseModel<IEvent> {
           e.*,
           et.tag_values,
           subcategory_id,
-          et.tag_ids
+          et.tag_ids,
+          et.tag_count
         FROM events e
         LEFT JOIN event_tags et ON e.id = et.event_id
         CROSS JOIN UNNEST(e.subcategories) as subcategory_id
@@ -282,7 +284,8 @@ export class RecommendationModel extends BaseModel<IEvent> {
         sampleRow: result.rows[0] ? {
           id: result.rows[0].id,
           subcategory_id: result.rows[0].subcategory_id,
-          has_tags: Boolean(result.rows[0].tag_values)
+          has_tags: Boolean(result.rows[0].tag_values),
+          tag_count: result.rows[0].tag_count
         } : null
       });
 
@@ -308,32 +311,75 @@ export class RecommendationModel extends BaseModel<IEvent> {
         }
         delete row.tag_values;
 
-        // Calculate number of matching tags
-        let matchingTags = 0;
-        let totalTags = 0;
-        Object.entries(tags).forEach(([tagId, values]) => {
-          const preference = preferences.tag_preferences[tagId];
-          if (preference) {
-            totalTags++;
-            if (preference.boolean_preference !== undefined) {
-              // For boolean tags, check if any value matches the preference
-              if (values.some(v => (v === 'true') === preference.boolean_preference)) {
-                matchingTags++;
-              }
-            } else if (preference.categorical_preference) {
-              // For categorical tags, check if any value matches any preferred value
-              if (values.some(v => preference.categorical_preference?.includes(v))) {
-                matchingTags++;
+        // Calculate tag match score based on three cases:
+        // 1. No tags for subcategory: 0.9 (high but not perfect)
+        // 2. Has tags but no user preferences: 0.5 (neutral)
+        // 3. Has tags and preferences: Calculate actual match score (0-1)
+        let tagMatchScore: number;
+        let hasMatchingTags: boolean = false;
+        
+        if (row.tag_count === 0) {
+          // Case 1: Subcategory has no tags
+          tagMatchScore = 0.9;
+          logger.debug('Event has no tags, using default high score:', {
+            eventId: row.id,
+            subcategoryId: row.subcategory_id,
+            score: tagMatchScore
+          });
+        } else {
+          // Check if user has any preferences for this event's tags
+          let hasPreferences = false;
+          let matchingTags = 0;
+          let totalTags = 0;
+
+          Object.entries(tags).forEach(([tagId, values]) => {
+            if (preferences.tag_preferences[tagId]) {
+              hasPreferences = true;
+              totalTags++;
+              const preference = preferences.tag_preferences[tagId];
+              
+              if (preference.boolean_preference !== undefined) {
+                // For boolean tags, check if any value matches the preference
+                if (values.some(v => (v === 'true') === preference.boolean_preference)) {
+                  matchingTags++;
+                  hasMatchingTags = true;
+                }
+              } else if (preference.categorical_preference) {
+                // For categorical tags, check if any value matches any preferred value
+                if (values.some(v => preference.categorical_preference?.includes(v))) {
+                  matchingTags++;
+                  hasMatchingTags = true;
+                }
               }
             }
+          });
+
+          if (hasPreferences) {
+            // Case 3: Has tags and user has preferences
+            tagMatchScore = matchingTags / totalTags;
+            logger.debug('Event has tag matches:', {
+              eventId: row.id,
+              subcategoryId: row.subcategory_id,
+              matchingTags,
+              totalTags,
+              score: tagMatchScore
+            });
+          } else {
+            // Case 2: Has tags but no user preferences
+            tagMatchScore = 0.5;
+            logger.debug('Event has tags but no user preferences:', {
+              eventId: row.id,
+              subcategoryId: row.subcategory_id,
+              score: tagMatchScore
+            });
           }
-        });
+        }
 
         const score: IRecommendationScore = {
           event_id: row.id,
           subcategory_id: row.subcategory_id,
-          tag_match_score: totalTags > 0 ? matchingTags / totalTags : 0,
-          has_matching_tags: matchingTags > 0
+          tag_match_score: tagMatchScore,
+          has_matching_tags: hasMatchingTags
         };
 
         return {
@@ -352,17 +398,6 @@ export class RecommendationModel extends BaseModel<IEvent> {
         eventsBySubcategory[subcatId].push(event);
       });
 
-      // Sort events within each subcategory by tag matching
-      Object.values(eventsBySubcategory).forEach(events => {
-        events.sort((a, b) => {
-          // First prioritize events with any matching tags
-          if (a.score.has_matching_tags && !b.score.has_matching_tags) return -1;
-          if (!a.score.has_matching_tags && b.score.has_matching_tags) return 1;
-          // Then sort by tag match score
-          return b.score.tag_match_score - a.score.tag_match_score;
-        });
-      });
-
       // Sort subcategories by user's preference level
       const sortedSubcategories = Object.keys(eventsBySubcategory)
         .sort((a, b) => {
@@ -370,6 +405,20 @@ export class RecommendationModel extends BaseModel<IEvent> {
           const prefB = preferences.category_interests[b] || 0;
           return prefB - prefA;
         });
+
+      // Within each subcategory, sort events by tag match score and relevance
+      Object.values(eventsBySubcategory).forEach(events => {
+        events.sort((a, b) => {
+          // Primary sort by tag match score
+          const scoreDiff = b.score.tag_match_score - a.score.tag_match_score;
+          if (Math.abs(scoreDiff) > 0.001) { // Use small epsilon for float comparison
+            return scoreDiff;
+          }
+          // Secondary sort by relevance date for equal scores
+          return new Date(b.event.relevance_start).getTime() - 
+                 new Date(a.event.relevance_start).getTime();
+        });
+      });
 
       // Interleave events from different subcategories
       const seenEvents = new Set<string>();

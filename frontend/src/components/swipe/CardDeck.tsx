@@ -156,11 +156,11 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     } finally {
       setLoading(false);
     }
-  }, 2000); // 2 second debounce to prevent rapid requests
+  }, 500); // Reduced from 2000ms to 500ms for smoother loading
 
-  // Only fetch more events when queue is getting low
+  // Fetch more events when queue is getting low
   useEffect(() => {
-    if (eventQueue.length < 2 && hasMoreEvents && !loading && !error) {
+    if (eventQueue.length < 3 && hasMoreEvents && !loading && !error) { // Changed from <2 to <3
       debouncedFetchEvents();
     }
   }, [eventQueue.length, hasMoreEvents, loading, error, debouncedFetchEvents]);
@@ -180,7 +180,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
         setInitialLoading(true);
         setError(null);
         
-        const events = await userEventApi.getAllEvents(1, 3, swipedEventIds);
+        const events = await userEventApi.getAllEvents(1, 6, swipedEventIds); // Increased from 3 to 6
         
         // Filter out any swiped events and mark them as seen
         const filteredEvents = events.filter(event => !swipedEventIds.includes(event.id));
@@ -194,7 +194,7 @@ export const CardDeck: React.FC<CardDeckProps> = ({
           setNoMoreCardsToShow(true);
           setHasMoreEvents(false);
         } else {
-          setHasMoreEvents(events.length === 3);
+          setHasMoreEvents(events.length === 6); // Changed from 3 to 6
         }
         
       } catch (err: any) {
