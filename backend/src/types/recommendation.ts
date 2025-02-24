@@ -4,15 +4,15 @@ export interface IUserPreferences {
   category_interests: Record<string, number>; // categoryId -> interest level (0-3)
   tag_preferences: Record<string, {
     boolean_preference?: boolean;
-    categorical_preference?: string;
+    categorical_preference?: string[]; // Changed to string[] to support multiple selected values
   }>;
 }
 
 export interface IRecommendationScore {
   event_id: string;
-  category_score: number;
-  tag_score: number;
-  total_score: number;
+  subcategory_id: string;
+  tag_match_score: number; // 0-1 score based on matching tags
+  has_matching_tags: boolean; // Whether this event has any matching tag preferences
 }
 
 export interface IRecommendationSettings {

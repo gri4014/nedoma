@@ -5,7 +5,7 @@ export interface IUserPreferences {
   }>;
   tags: Array<{
     id: string;
-    value: boolean | string; // boolean for boolean tags, string for categorical tags
+    value: boolean | string[]; // boolean for boolean tags, string[] for categorical tags
   }>;
   city?: string; // For future multi-city support, default to Moscow
 }
@@ -16,19 +16,18 @@ export interface IRecommendationSettings {
 }
 
 export interface IRecommendationScore {
-  eventId: string;
-  score: number;
-  factors: {
-    categoryInterest: number; // 0-1 based on category interest level
-    tagMatches: number; // 0-1 based on matching tag preferences
-    swipeHistory: number; // 0-1 based on similar events' swipe history
-  };
+  event_id: string;
+  subcategory_id: string;
+  tag_match_score: number; // 0-1 score based on matching tags
+  has_matching_tags: boolean; // Whether this event has any matching tag preferences
 }
 
 export interface IRecommendationResponse {
-  events: Array<{
+  success: boolean;
+  data: Array<{
     event: import('./event').IEvent;
     score: IRecommendationScore;
   }>;
   hasMore: boolean;
+  error?: string;
 }

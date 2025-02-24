@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { IEvent } from '../../types/event';
 import { IRecommendationResponse } from '../../types/recommendation';
 import api from '../../services/api';
-import { AxiosResponse } from 'axios';
 import { SwipeCard } from './SwipeCard';
 
 const DeckContainer = styled.div`
@@ -95,18 +94,20 @@ export const CardDeck: React.FC<CardDeckProps> = ({
       setLoading(true);
       setError(null);
       const response = await api.get<IRecommendationResponse>(`/user/recommendations?page=${currentPage}&limit=3`);
-      const events = response.data.events || [];
+      
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to fetch events');
+      }
+      
+      const events = response.data.data || [];
       
       // If we got less than 3 events (our requested limit), there are no more events
-      if (events.length < 3) {
-        setHasMoreEvents(false);
-      }
+      setHasMoreEvents(response.data.hasMore);
       
       // Only add events we haven't seen yet
       const newEvents = events.filter(item => 
         !eventQueue.some(queuedEvent => queuedEvent.id === item.event.id)
-      ).map(item => item.event
-      );
+      ).map(item => item.event);
       
       if (newEvents.length > 0) {
         setEventQueue(prev => [...prev, ...newEvents]);
@@ -135,14 +136,16 @@ export const CardDeck: React.FC<CardDeckProps> = ({
         setInitialLoading(true);
         setError(null);
         const response = await api.get<IRecommendationResponse>('/user/recommendations?page=1&limit=3');
-        const events = response.data.events || [];
+        
+        if (!response.data.success) {
+          throw new Error(response.data.error || 'Failed to fetch events');
+        }
+        
+        const events = response.data.data || [];
         setEventQueue(events.map(item => item.event));
         setCurrentPage(1);
         
-        // If we got less than 3 events (our requested limit), there are no more events
-        if (events.length < 3) {
-          setHasMoreEvents(false);
-        }
+        setHasMoreEvents(response.data.hasMore);
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Не удалось загрузить мероприятия');
       } finally {
@@ -219,4 +222,4 @@ export const CardDeck: React.FC<CardDeckProps> = ({
       </CardContainer>
     </DeckContainer>
   );
-};
+}

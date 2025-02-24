@@ -120,6 +120,31 @@ class UserPreferenceController {
       return;
     }
 
+    // First validate that all tags exist and values are valid
+    for (const pref of preferences) {
+      const tagResult = await db.query(
+        'SELECT possible_values FROM tags WHERE id = $1 AND is_active = true',
+        [pref.tagId]
+      );
+
+      if (tagResult.rows.length === 0) {
+        res.status(400).json({ error: `Tag ${pref.tagId} not found or inactive` });
+        return;
+      }
+
+      const possibleValues = tagResult.rows[0].possible_values;
+      const invalidValues = pref.values.filter(value => !possibleValues.includes(value));
+      
+      if (invalidValues.length > 0) {
+        res.status(400).json({ 
+          error: 'Invalid tag values', 
+          tagId: pref.tagId,
+          invalidValues
+        });
+        return;
+      }
+    }
+
     // Start a transaction
     await db.query('BEGIN');
 
@@ -130,19 +155,19 @@ class UserPreferenceController {
         [userId]
       );
 
-        // Insert new preferences if any
-        if (preferences.length > 0) {
-          for (const pref of preferences) {
-            await db.query(
-              `INSERT INTO user_tag_preferences 
-               (user_id, tag_id, selected_values)
-               VALUES ($1, $2, $3)`,
-              [userId, pref.tagId, pref.values]
-            );
-          }
-
-          console.log('Tag preferences set successfully:', preferences);
+      // Insert new preferences if any
+      if (preferences.length > 0) {
+        for (const pref of preferences) {
+          await db.query(
+            `INSERT INTO user_tag_preferences 
+             (user_id, tag_id, selected_values)
+             VALUES ($1, $2, $3)`,
+            [userId, pref.tagId, pref.values]
+          );
         }
+
+        console.log('Tag preferences set successfully:', preferences);
+      }
 
       await db.query('COMMIT');
       res.status(200).json({ message: 'Tag preferences updated successfully' });
