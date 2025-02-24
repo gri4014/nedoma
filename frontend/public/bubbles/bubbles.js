@@ -182,15 +182,14 @@ function resizeCanvas() {
    ctx.imageSmoothingQuality = 'high';
 }
 
-// Define 6 distinct colors for categories
-const categoryColors = [
-   'hsl(200, 70%, 45%)',  // Blue
-   'hsl(0, 70%, 50%)',    // Red
-   'hsl(280, 60%, 45%)',  // Purple
-   'hsl(145, 60%, 40%)',  // Green
-   'hsl(45, 80%, 45%)',   // Orange
-   'hsl(170, 70%, 35%)'   // Teal
-];
+// Define specific colors for each category
+const categoryColors = {
+   'Спорт': 'hsl(200, 70%, 45%)',      // Blue
+   'Культура': 'hsl(0, 70%, 50%)',      // Red
+   'Развлечения': 'hsl(280, 60%, 45%)'  // Purple
+};
+
+const fallbackColor = 'hsl(200, 70%, 45%)'; // Default blue
 
 function initializeBubbles(categories) {
    console.log('Initializing bubbles with categories:', categories);
@@ -204,8 +203,8 @@ function initializeBubbles(categories) {
    const centerY = window.innerHeight / 2;
    const clusterRadius = 20; // Reduced initial cluster radius
 
-   categories.forEach((category, index) => {
-       const categoryColor = categoryColors[index % categoryColors.length];
+   categories.forEach((category) => {
+       const categoryColor = categoryColors[category.name] || fallbackColor;
        category.subcategories.forEach(subcategory => {
            // Random position within a small circle around the center
            const angle = Math.random() * Math.PI * 2;

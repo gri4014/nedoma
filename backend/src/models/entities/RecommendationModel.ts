@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { DbResponse } from '../interfaces/database';
 import { logger } from '../../utils/logger';
 import { IEvent } from '../interfaces/event';
-import { SwipeDirection } from '../../types/swipe';
+import { SwipeDirection, SwipeDirectionMeaning } from '../../types/swipe';
 import { 
   IUserPreferences, 
   IRecommendationScore, 
@@ -57,39 +57,52 @@ export class RecommendationModel extends BaseModel<IEvent> {
       // Get explicit category preferences
       const explicitPreferencesResult = await this.userCategoryPreferenceModel.getUserPreferences(userId);
       
-      // Convert CategoryPreference[] to Record<string, number>
-      const explicitPreferences: Record<string, number> = {};
+      // Convert Subcategory preferences to Record<string, number>
+      const subcategoryPreferences: Record<string, number> = {};
       if (explicitPreferencesResult.success && explicitPreferencesResult.data) {
         explicitPreferencesResult.data.forEach(pref => {
-          explicitPreferences[pref.categoryId] = pref.interestLevel;
+          subcategoryPreferences[pref.categoryId] = pref.interestLevel;
         });
       }
 
       // Get implicit preferences from swipe history
       const implicitPreferencesQuery = `
         SELECT 
-          e.category_id,
+          unnested_subcategory as subcategory_id,
           COUNT(*) FILTER (WHERE s.direction = $1) as interested_count,
           COUNT(*) FILTER (WHERE s.direction = $2) as planning_count,
           COUNT(*) as total_count
         FROM swipes s
         JOIN events e ON s.event_id = e.id
+        CROSS JOIN UNNEST(e.subcategories) as unnested_subcategory
         WHERE s.user_id = $3
-        GROUP BY e.category_id
+        GROUP BY unnested_subcategory
       `;
 
-      const implicitResult = await this.db.query(implicitPreferencesQuery, [
-        SwipeDirection.RIGHT,
-        SwipeDirection.UP,
-        userId
-      ]);
-
-      // Calculate implicit category interest levels (0-3)
-      const implicitPreferences: Record<string, number> = {};
-      implicitResult.rows.forEach(row => {
-        const positiveRate = (row.interested_count + row.planning_count * 2) / (row.total_count * 2);
-        implicitPreferences[row.category_id] = Math.min(Math.floor(positiveRate * 4), 3);
+      // Get implicit preferences with error handling
+      let implicitPreferences: Record<string, number> = {};
+      
+      logger.debug('Getting implicit preferences with query:', {
+        query: implicitPreferencesQuery,
+        params: [SwipeDirection.RIGHT, SwipeDirection.UP, userId]
       });
+
+      try {
+        const implicitResult = await this.db.query(implicitPreferencesQuery, [
+          SwipeDirection.RIGHT,
+          SwipeDirection.UP,
+          userId
+        ]);
+
+        // Calculate implicit subcategory interest levels (0-3)
+        implicitResult.rows.forEach(row => {
+          const positiveRate = (row.interested_count + row.planning_count * 2) / (row.total_count * 2);
+          implicitPreferences[row.subcategory_id] = Math.min(Math.floor(positiveRate * 3), 2);
+        });
+        logger.info('Successfully calculated implicit preferences', { userId, preferences: implicitPreferences });
+      } catch (error) {
+        logger.warn('Failed to get implicit preferences, defaulting to empty', { userId, error });
+      }
 
       // Get tag preferences from user_tag_preferences table
       const tagPrefsQuery = `
@@ -100,35 +113,54 @@ export class RecommendationModel extends BaseModel<IEvent> {
       
       const tagPrefsResult = await this.db.query(tagPrefsQuery, [userId]);
       
-      // Convert tag preferences to the expected format
-      const tagPreferences: Record<string, {
+      // Process tag preferences with error handling
+      let tagPreferences: Record<string, {
         boolean_preference?: boolean;
         categorical_preference?: string[];
       }> = {};
 
-      tagPrefsResult.rows.forEach(row => {
-        if (!tagPreferences[row.tag_id]) {
-          tagPreferences[row.tag_id] = {};
-        }
-        
-        // If values are boolean strings, convert to boolean preference
-        if (row.selected_values.every((v: string) => v === 'true' || v === 'false')) {
-          tagPreferences[row.tag_id].boolean_preference = row.selected_values.includes('true');
-        } else {
-          // Otherwise store as categorical preferences
-          tagPreferences[row.tag_id].categorical_preference = row.selected_values;
-        }
-      });
+      try {
+        tagPrefsResult.rows.forEach(row => {
+          if (!tagPreferences[row.tag_id]) {
+            tagPreferences[row.tag_id] = {};
+          }
+          
+          // If values are boolean strings, convert to boolean preference
+          if (row.selected_values?.every((v: string) => v === 'true' || v === 'false')) {
+            tagPreferences[row.tag_id].boolean_preference = row.selected_values.includes('true');
+          } else if (row.selected_values) {
+            // Otherwise store as categorical preferences
+            tagPreferences[row.tag_id].categorical_preference = row.selected_values;
+          }
+        });
+        logger.info('Successfully processed tag preferences', { userId, tagCount: Object.keys(tagPreferences).length });
+      } catch (error) {
+        logger.warn('Error processing tag preferences, defaulting to empty', { userId, error });
+        tagPreferences = {};
+      }
 
-      return {
-        success: true,
-        data: {
-          category_interests: explicitPreferences, // Only use explicit preferences
-          tag_preferences: tagPreferences
-        }
+      // Only proceed if we have some preferences
+      if (Object.keys(subcategoryPreferences).length > 0) {
+        return {
+          success: true,
+          data: {
+            category_interests: subcategoryPreferences,
+            tag_preferences: tagPreferences
+          }
+        };
+      } else {
+        logger.warn('No category preferences found for user', { userId });
+        return {
+          success: false,
+          error: 'No category preferences found. Please complete onboarding first.'
+        };
       };
     } catch (error) {
-      logger.error('Error getting user preferences:', error);
+      logger.error('Error getting user preferences:', {
+        error,
+        userId,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return {
         success: false,
         error: 'Failed to get user preferences'
@@ -147,6 +179,8 @@ export class RecommendationModel extends BaseModel<IEvent> {
     try {
       // Get user preferences
       const preferencesResult = await this.getUserPreferences(userId);
+      logger.info('User preferences:', preferencesResult);
+      
       if (!preferencesResult.success || !preferencesResult.data) {
         return {
           success: false,
@@ -162,11 +196,11 @@ export class RecommendationModel extends BaseModel<IEvent> {
       const values: any[] = [];
       let paramCount = 1;
 
-      // Add condition to only show events that haven't passed their end relevance date
-      conditions.push(`e.relevance_start >= CURRENT_TIMESTAMP`);
+      // Show events that started within last 3 days or haven't started yet
+      conditions.push(`e.relevance_start >= (CURRENT_TIMESTAMP - INTERVAL '3 days')`);
       
       // Add condition for selected subcategories
-      conditions.push(`es.subcategory_id = ANY($${paramCount})`);
+      conditions.push(`subcategory_id = ANY($${paramCount})`);
       values.push(
         // Get subcategory IDs that user has selected (preference level > 0)
         Object.entries(preferences.category_interests)
@@ -188,38 +222,34 @@ export class RecommendationModel extends BaseModel<IEvent> {
         paramCount++;
       }
 
+      // Only apply isFree filter if specifically requested
+      // Add isFree filter only if explicitly requested
       if (filters.isFree !== undefined) {
         conditions.push(`e.is_free = $${paramCount}`);
         values.push(filters.isFree);
         paramCount++;
       }
 
+      // Add maxPrice filter only if provided
       if (filters.maxPrice !== undefined) {
         conditions.push(`(e.is_free = true OR e.price_range->>'max' <= $${paramCount}::text)`);
         values.push(filters.maxPrice);
         paramCount++;
       }
 
-      if (filters.excludeEventIds?.length) {
-        conditions.push(`e.id NOT IN (${filters.excludeEventIds.map(() => `$${paramCount++}`).join(', ')})`);
-        values.push(...filters.excludeEventIds);
+      // Get events with their tags that match user's subcategory preferences
+      const excludeIds = filters.excludeEventIds?.filter(Boolean) || [];
+      if (excludeIds.length > 0) {
+        conditions.push(`e.id NOT IN (${excludeIds.map(() => `$${paramCount++}`).join(', ')})`);
+        values.push(...excludeIds);
       }
 
-      // Get events with their tags that match user's subcategory preferences
       const query = `
-        WITH event_subcategories AS (
-          SELECT DISTINCT e.id as event_id, sc.id as subcategory_id
-          FROM events e
-          JOIN event_subcategories esc ON e.id = esc.event_id
-          JOIN subcategories sc ON esc.subcategory_id = sc.id
-          WHERE sc.id = ANY($${paramCount})
-        ),
-        event_tags AS (
+        WITH event_tags AS (
           SELECT 
             e.id as event_id,
-            array_agg(DISTINCT et.tag_id || ':' || et.value) as tag_values,
-            array_agg(DISTINCT et.tag_id) as tag_ids,
-            array_agg(DISTINCT et.value) as values
+            array_agg(DISTINCT jsonb_build_object('tag_id', et.tag_id, 'values', et.selected_values)) as tag_values,
+            array_agg(DISTINCT et.tag_id) as tag_ids
           FROM events e
           LEFT JOIN event_tags et ON e.id = et.event_id
           GROUP BY e.id
@@ -227,29 +257,53 @@ export class RecommendationModel extends BaseModel<IEvent> {
         SELECT 
           e.*,
           et.tag_values,
-          es.subcategory_id,
-          et.tag_ids,
-          et.values
+          subcategory_id,
+          et.tag_ids
         FROM events e
-        JOIN event_subcategories es ON e.id = es.event_id
         LEFT JOIN event_tags et ON e.id = et.event_id
+        CROSS JOIN UNNEST(e.subcategories) as subcategory_id
         WHERE ${conditions.join(' AND ')}
-        ${filters.offset ? `OFFSET ${filters.offset}` : ''}
+        ORDER BY e.relevance_start DESC
+        ${filters.limit ? `LIMIT ${filters.limit}` : ''}
+        ${filters.page && filters.limit ? `OFFSET ${(filters.page - 1) * filters.limit}` : 
+          filters.offset !== undefined ? `OFFSET ${filters.offset}` : ''}
       `;
 
+      logger.debug('Executing recommendation query:', {
+        query,
+        values,
+        filters
+      });
+
       const result = await this.db.query(query, values);
+      
+      logger.info('Raw recommendation query result:', {
+        rowCount: result.rows.length,
+        sampleRow: result.rows[0] ? {
+          id: result.rows[0].id,
+          subcategory_id: result.rows[0].subcategory_id,
+          has_tags: Boolean(result.rows[0].tag_values)
+        } : null
+      });
+
+      // Handle no results case
+      if (result.rows.length === 0) {
+        return {
+          success: true,
+          data: [],
+          hasMore: false
+        };
+      }
 
       // Calculate scores and sort events
       const scoredEvents: IRecommendationResult[] = result.rows.map(row => {
         // Convert tag_values array to tags object
         const tags: Record<string, string[]> = {};
         if (row.tag_values?.[0] !== null) {
-          row.tag_values.forEach((tv: string) => {
-            const [tagId, value] = tv.split(':');
-            if (!tags[tagId]) {
-              tags[tagId] = [];
+          row.tag_values.forEach((tv: { tag_id: string; values: string[] }) => {
+            if (tv.values && tv.values.length > 0) {
+              tags[tv.tag_id] = tv.values;
             }
-            tags[tagId].push(value);
           });
         }
         delete row.tag_values;
@@ -354,15 +408,25 @@ export class RecommendationModel extends BaseModel<IEvent> {
         }
       }
 
+      logger.info('Final recommendations:', {
+        totalEvents: interleavedEvents.length,
+        categories: Object.keys(eventsBySubcategory).length,
+        sampleEvent: interleavedEvents[0] ? {
+          id: interleavedEvents[0].event.id,
+          score: interleavedEvents[0].score
+        } : null
+      });
+
       return {
         success: true,
-        data: interleavedEvents
+        data: interleavedEvents,
+        hasMore: interleavedEvents.length >= finalSettings.max_events
       };
     } catch (error) {
       logger.error('Error getting recommended events:', error);
       return {
         success: false,
-        error: 'Failed to get recommended events'
+          error: `Failed to get recommended events: ${error instanceof Error ? error.message : 'Unknown error'}`
       };
     }
   }

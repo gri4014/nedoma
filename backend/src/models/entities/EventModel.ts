@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { DbResponse } from '../interfaces/database';
 import { logger } from '../../utils/logger';
 import { IEvent, ICreateEvent, IUpdateEvent, IEventFilters } from '../interfaces/event';
+import { TagModel } from './TagModel';
 
 export class EventModel extends BaseModel<IEvent, 'tags'> {
   protected tableName = 'events';
@@ -97,11 +98,33 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
    */
   async createEvent(data: ICreateEvent): Promise<DbResponse<IEvent>> {
     const client = await this.db.connect();
+    const tagModel = new TagModel();
     try {
       await client.query('BEGIN');
 
-      // Create event (exclude tags from database operation)
+      // Validate tag values before attempting to create the event
       const { tags, ...eventData } = data;
+      if (tags && Object.keys(tags).length > 0) {
+        for (const [tagId, values] of Object.entries(tags)) {
+          const validation = await tagModel.isValidTagValues(tagId, values);
+          if (!validation.success) {
+            await client.query('ROLLBACK');
+            return {
+              success: false,
+              error: `Failed to validate tag values: ${validation.error}`
+            };
+          }
+          if (!validation.data) {
+            await client.query('ROLLBACK');
+            return {
+              success: false,
+              error: `Invalid values selected for tag ${tagId}`
+            };
+          }
+        }
+      }
+
+      // Create event
       const eventResult = await this.createWithClient(client, eventData);
 
       if (!eventResult.success || !eventResult.data) {
@@ -148,11 +171,34 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
    */
   async updateEvent(id: string, data: IUpdateEvent): Promise<DbResponse<IEvent>> {
     const client = await this.db.connect();
+    const tagModel = new TagModel();
     try {
       await client.query('BEGIN');
 
       // Update event (exclude tags from database operation)
       const { tags, ...eventData } = data;
+      
+      // Validate tags if they're being updated
+      if (tags && Object.keys(tags).length > 0) {
+        for (const [tagId, values] of Object.entries(tags)) {
+          const validation = await tagModel.isValidTagValues(tagId, values);
+          if (!validation.success) {
+            await client.query('ROLLBACK');
+            return {
+              success: false,
+              error: `Failed to validate tag values: ${validation.error}`
+            };
+          }
+          if (!validation.data) {
+            await client.query('ROLLBACK');
+            return {
+              success: false,
+              error: `Invalid values selected for tag ${tagId}`
+            };
+          }
+        }
+      }
+
       const eventResult = await this.updateWithClient(client, id, eventData);
 
       if (!eventResult.success || !eventResult.data) {

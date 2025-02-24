@@ -4,9 +4,9 @@ import { IRecommendationResponse } from '../types/recommendation';
 
 // Enum values matching backend's SwipeDirection
 const SwipeDirection = {
-  LEFT: 'LEFT',
-  RIGHT: 'RIGHT',
-  UP: 'UP'
+  LEFT: 'left',
+  RIGHT: 'right',
+  UP: 'up'
 } as const;
 
 interface Admin {
@@ -94,21 +94,32 @@ const eventApi = {
 // User-facing event API methods
 const userEventApi = {
   // Get recommended events with pagination
-  getAllEvents: async (page: number = 1, limit: number = 10): Promise<IEvent[]> => {
+  getAllEvents: async (page: number = 1, limit: number = 10, excludeEventIds: string[] = []): Promise<IEvent[]> => {
     try {
-      const response = await api.get<{ success: boolean, data: { event: IEvent, score: any }[] }>(`/user/recommendations?page=${page}&limit=${limit}`);
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString()
+      });
+
+      if (excludeEventIds.length > 0) {
+        queryParams.append('excludeEventIds', excludeEventIds.join(','));
+      }
+
+      const response = await api.get<{ success: boolean, data: { event: IEvent, score: any }[] }>(
+        `/user/recommendations?${queryParams.toString()}`
+      );
       if (response.data.success && response.data.data) {
         return response.data.data.map(result => result.event);
       }
       throw new Error('Invalid response format');
     } catch (error: any) {
       console.error('Recommendation error:', error);
-      // Only fall back if it's a 404 (no recommendations found)
-      if (axios.isAxiosError(error) && error.response?.status === 404) {
+      // Fall back to regular events for 404 (no recommendations) or 400 (recommendation errors)
+      if (axios.isAxiosError(error) && (error.response?.status === 404 || error.response?.status === 400)) {
         const fallbackResponse = await api.get<any>(`/admin/events?page=${page}&limit=${limit}`);
         return fallbackResponse.data.data;
       }
-      throw error; // Re-throw other errors to show the real issue
+      return []; // Return empty array for other errors to prevent infinite requests
     }
   },
 

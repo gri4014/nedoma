@@ -1,9 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useDebounce } from '../../hooks/useDebounce';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IEvent } from '../../types/event';
 import { IRecommendationResponse } from '../../types/recommendation';
-import api from '../../services/api';
+import { userEventApi } from '../../services/api';
 import { SwipeCard } from './SwipeCard';
 
 const DeckContainer = styled.div`
@@ -28,7 +29,6 @@ const StackedCardWrapper = styled(motion.div)<{ $index: number }>`
   height: 100%;
   transform-origin: 50% 50%;
   will-change: transform;
-  pointer-events: ${props => props.$index === 0 ? 'auto' : 'none'};
 `;
 
 const LoadingText = styled.div`
@@ -83,69 +83,120 @@ export const CardDeck: React.FC<CardDeckProps> = ({
   const [eventQueue, setEventQueue] = useState<IEvent[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [swipedEventIds, setSwipedEventIds] = useState<string[]>([]);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
   const [error, setError] = useState<string | null>(null);
   const [hasMoreEvents, setHasMoreEvents] = useState(true);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [noMoreCardsToShow, setNoMoreCardsToShow] = useState(false);
+  const [seenEventIds] = useState(new Set<string>());
 
-  const fetchEvents = useCallback(async () => {
-    if (loading || !hasMoreEvents) return;
+  const debouncedFetchEvents = useDebounce(async () => {
+    if (!hasMoreEvents || loading || error) return;
+
+    // Cancel any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
     
     try {
+      if (retryCountRef.current >= MAX_RETRIES) {
+        setError('Превышено количество попыток загрузки. Пожалуйста, обновите страницу.');
+        setHasMoreEvents(false);
+        return;
+      }
+
       setLoading(true);
       setError(null);
-      const response = await api.get<IRecommendationResponse>(`/user/recommendations?page=${currentPage}&limit=3`);
       
-      if (!response.data.success) {
-        throw new Error(response.data.error || 'Failed to fetch events');
+      const events = await userEventApi.getAllEvents(currentPage, 3, swipedEventIds);
+      
+      if (!events || events.length === 0) {
+        setHasMoreEvents(false);
+        return;
       }
-      
-      const events = response.data.data || [];
-      
-      // If we got less than 3 events (our requested limit), there are no more events
-      setHasMoreEvents(response.data.hasMore);
-      
-      // Only add events we haven't seen yet
-      const newEvents = events.filter(item => 
-        !eventQueue.some(queuedEvent => queuedEvent.id === item.event.id)
-      ).map(item => item.event);
-      
+
+      // Filter out events we've already seen or swiped
+      const newEvents = events.filter(event => 
+        !seenEventIds.has(event.id) &&
+        !swipedEventIds.includes(event.id)
+      );
+
       if (newEvents.length > 0) {
+        // Mark these events as seen
+        newEvents.forEach(event => seenEventIds.add(event.id));
+        
         setEventQueue(prev => [...prev, ...newEvents]);
         setCurrentPage(prev => prev + 1);
-      } else if (hasMoreEvents) {
-        // If we got no new events but hasMoreEvents is true, try next page
-        fetchEvents();
+        retryCountRef.current = 0;
+      } else if (events.length < 3 || retryCountRef.current >= MAX_RETRIES) {
+        // If we got less than 3 events or have retried max times, no more events
+        setHasMoreEvents(false);
+        if (eventQueue.length === 0) {
+          setNoMoreCardsToShow(true);
+        }
       }
+
+      // Update hasMoreEvents based on both response and filtering
+      setHasMoreEvents(events.length === 3 && newEvents.length > 0);
+      
     } catch (err: any) {
-      setError(err?.response?.data?.message || 'Не удалось загрузить мероприятия');
       console.error('Error fetching events:', err);
+      retryCountRef.current++;
+      if (retryCountRef.current >= MAX_RETRIES) {
+        setHasMoreEvents(false);
+      }
+      const errorMsg = err?.response?.data?.error || 'Не удалось загрузить мероприятия';
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }
-  }, [currentPage, loading, hasMoreEvents, eventQueue]);
+  }, 2000); // 2 second debounce to prevent rapid requests
 
+  // Only fetch more events when queue is getting low
   useEffect(() => {
-    if (eventQueue.length < 3 && hasMoreEvents && !loading) {
-      fetchEvents();
+    if (eventQueue.length < 2 && hasMoreEvents && !loading && !error) {
+      debouncedFetchEvents();
     }
-  }, [eventQueue.length, hasMoreEvents, loading, fetchEvents]);
+  }, [eventQueue.length, hasMoreEvents, loading, error, debouncedFetchEvents]);
+
+  // Cleanup function to cancel any pending requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const initialFetch = async () => {
       try {
         setInitialLoading(true);
         setError(null);
-        const response = await api.get<IRecommendationResponse>('/user/recommendations?page=1&limit=3');
         
-        if (!response.data.success) {
-          throw new Error(response.data.error || 'Failed to fetch events');
+        const events = await userEventApi.getAllEvents(1, 3, swipedEventIds);
+        
+        // Filter out any swiped events and mark them as seen
+        const filteredEvents = events.filter(event => !swipedEventIds.includes(event.id));
+        filteredEvents.forEach(event => seenEventIds.add(event.id));
+        
+        setEventQueue(filteredEvents);
+        setCurrentPage(2);
+        
+        // If we got no events after filtering, show empty state
+        if (filteredEvents.length === 0) {
+          setNoMoreCardsToShow(true);
+          setHasMoreEvents(false);
+        } else {
+          setHasMoreEvents(events.length === 3);
         }
         
-        const events = response.data.data || [];
-        setEventQueue(events.map(item => item.event));
-        setCurrentPage(1);
-        
-        setHasMoreEvents(response.data.hasMore);
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Не удалось загрузить мероприятия');
       } finally {
@@ -156,20 +207,43 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     initialFetch();
   }, []);
 
-  const handleSwipe = (direction: 'left' | 'right' | 'up') => {
+  const handleSwipe = async (direction: 'left' | 'right' | 'up') => {
     if (eventQueue.length === 0) return;
 
     const currentEvent = eventQueue[0];
-
-    if (direction === 'left' && onSwipeLeft) {
-      onSwipeLeft(currentEvent);
-    } else if (direction === 'right' && onSwipeRight) {
-      onSwipeRight(currentEvent);
-    } else if (direction === 'up' && onSwipeUp) {
-      onSwipeUp(currentEvent);
+    
+    try {
+      switch (direction) {
+        case 'left':
+          await userEventApi.swipeLeft(currentEvent.id);
+          if (onSwipeLeft) onSwipeLeft(currentEvent);
+          break;
+        case 'right':
+          await userEventApi.swipeRight(currentEvent.id);
+          if (onSwipeRight) onSwipeRight(currentEvent);
+          break;
+        case 'up':
+          await userEventApi.swipeUp(currentEvent.id);
+          if (onSwipeUp) onSwipeUp(currentEvent);
+          break;
+      }
+      
+      // Add swiped event to tracked IDs and mark as seen
+      setSwipedEventIds(prev => [...prev, currentEvent.id]);
+      seenEventIds.add(currentEvent.id);
+      
+      setEventQueue(prev => {
+        const newQueue = prev.slice(1);
+        // If queue will be empty and no more events, show end message
+        if (newQueue.length === 0 && !hasMoreEvents) {
+          setNoMoreCardsToShow(true);
+        }
+        return newQueue;
+      });
+    } catch (err) {
+      console.error('Error recording swipe:', err);
+      setError('Не удалось сохранить ваше действие. Пожалуйста, попробуйте снова.');
     }
-
-    setEventQueue(prev => prev.slice(1));
   };
 
   if (initialLoading) {
@@ -188,10 +262,10 @@ export const CardDeck: React.FC<CardDeckProps> = ({
     );
   }
 
-  if (eventQueue.length === 0 && !initialLoading && !loading && !hasMoreEvents) {
+  if ((eventQueue.length === 0 && !initialLoading && !loading && !hasMoreEvents) || noMoreCardsToShow) {
     return (
       <DeckContainer>
-        <LoadingText>Больше нет мероприятий</LoadingText>
+        <LoadingText>На данный момент это все карточки</LoadingText>
       </DeckContainer>
     );
   }
@@ -222,4 +296,4 @@ export const CardDeck: React.FC<CardDeckProps> = ({
       </CardContainer>
     </DeckContainer>
   );
-}
+};

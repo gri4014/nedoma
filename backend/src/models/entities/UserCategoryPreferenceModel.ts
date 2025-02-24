@@ -6,8 +6,8 @@ import { DbError, ErrorType } from '../../utils/errors';
 interface UserCategoryPreferenceRecord {
   id: string;
   user_id: string;
-  category_id: string;
-  interest_level: number;
+  subcategory_id: string;
+  level: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -15,8 +15,8 @@ interface UserCategoryPreferenceRecord {
 const userCategoryPreferenceSchema = z.object({
   id: z.string().uuid(),
   user_id: z.string(),
-  category_id: z.string().uuid(),
-  interest_level: z.number().min(0).max(3),
+  subcategory_id: z.string().uuid(),
+  level: z.number().min(0).max(2),
   created_at: z.date(),
   updated_at: z.date()
 });
@@ -35,15 +35,17 @@ export class UserCategoryPreferenceModel extends BaseModel<UserCategoryPreferenc
   }> {
     try {
       const result = await this.db.query<UserCategoryPreferenceRecord>(
-        'SELECT * FROM get_user_category_preferences($1)',
+        `SELECT id, user_id, subcategory_id, level, created_at, updated_at 
+         FROM user_category_preferences 
+         WHERE user_id = $1`,
         [userId]
       );
 
       return {
         success: true,
         data: result.rows.map(row => ({
-          categoryId: row.category_id,
-          interestLevel: row.interest_level as 0 | 1 | 2 | 3
+          categoryId: row.subcategory_id,
+          interestLevel: row.level as 0 | 1 | 2
         }))
       };
     } catch (error) {
@@ -67,17 +69,36 @@ export class UserCategoryPreferenceModel extends BaseModel<UserCategoryPreferenc
   }> {
     try {
       // Convert preferences to JSON string for the function call
-      const preferencesJson = JSON.stringify(
-        preferences.map(p => ({
-          category_id: p.categoryId,
-          interest_level: p.interestLevel
-        }))
+      // Start transaction
+      await this.db.query('BEGIN');
+
+      // Delete existing preferences
+      await this.db.query(
+        'DELETE FROM user_category_preferences WHERE user_id = $1',
+        [userId]
       );
 
-      await this.db.query(
-        'SELECT set_user_category_preferences($1, $2)',
-        [userId, preferencesJson]
-      );
+      if (preferences.length > 0) {
+        // Insert new preferences
+        const values = preferences.map((pref, idx) => 
+          `($1, $${idx * 2 + 2}, $${idx * 2 + 3})`
+        ).join(',');
+
+        const flatParams = preferences.reduce<Array<string | number>>((acc, pref) => 
+          [...acc, pref.categoryId, pref.interestLevel], 
+          [userId]
+        );
+
+        const query = `
+          INSERT INTO user_category_preferences 
+          (user_id, subcategory_id, level)
+          VALUES ${values}
+        `;
+
+        await this.db.query(query, flatParams);
+      }
+
+      await this.db.query('COMMIT');
 
       return { success: true };
     } catch (error) {
@@ -128,16 +149,16 @@ export class UserCategoryPreferenceModel extends BaseModel<UserCategoryPreferenc
         user_id: string;
         preferences: Array<{
           categoryId: string;
-          interestLevel: 0 | 1 | 2 | 3;
+          interestLevel: 0 | 1 | 2;
         }>;
       }>(
         `SELECT user_id, json_agg(
           json_build_object(
-            'categoryId', category_id,
-            'interestLevel', interest_level
+            'categoryId', subcategory_id,
+            'interestLevel', level
           )
         ) as preferences
-        FROM user_category_preferences
+        FROM user_category_preferences 
         GROUP BY user_id`
       );
 

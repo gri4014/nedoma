@@ -1,8 +1,15 @@
 export enum SwipeDirection {
-  LEFT = 'uninterested',
-  RIGHT = 'interested',
-  UP = 'planning_to_go'
+  LEFT = 'left',
+  RIGHT = 'right',
+  UP = 'up'
 }
+
+// Business logic mapping for swipe directions
+export const SwipeDirectionMeaning = {
+  [SwipeDirection.LEFT]: 'uninterested',
+  [SwipeDirection.RIGHT]: 'interested',
+  [SwipeDirection.UP]: 'planning_to_go'
+} as const;
 
 export interface ISwipe {
   id: string;

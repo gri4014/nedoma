@@ -50,11 +50,19 @@ export class SwipeModel extends BaseModel<ISwipe> {
         };
       }
 
-      // Create new swipe
-      const result = await this.createWithClient(client, data);
+      // Create new swipe with only valid columns
+      const result = await client.query(
+        `INSERT INTO swipes (user_id, event_id, direction) 
+         VALUES ($1, $2, $3)
+         RETURNING id, user_id, event_id, direction, created_at, updated_at`,
+        [data.user_id, data.event_id, data.direction]
+      );
 
       await client.query('COMMIT');
-      return result;
+      return {
+        success: true,
+        data: result.rows[0]
+      };
     } catch (error) {
       await client.query('ROLLBACK');
       logger.error('Error creating swipe:', error);
