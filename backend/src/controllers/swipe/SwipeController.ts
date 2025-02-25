@@ -159,6 +159,49 @@ export class SwipeController {
       });
     }
   };
+
+  /**
+   * Delete the most recent swipe for a user (undo last swipe)
+   */
+  undoLastSwipe = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          success: false,
+          error: 'User not authenticated'
+        });
+        return;
+      }
+
+      const result = await this.swipeModel.deleteLastSwipe(userId);
+
+      if (!result.success) {
+        res.status(400).json(result);
+        return;
+      }
+
+      if (!result.data) {
+        res.status(404).json({
+          success: false,
+          error: 'No swipes found to undo'
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: result.data
+      });
+    } catch (error) {
+      logger.error('Error in undoLastSwipe:', error);
+      res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'Internal server error'
+      });
+    }
+  };
 }
 
 // Export singleton instance

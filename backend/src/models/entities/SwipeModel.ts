@@ -139,6 +139,59 @@ export class SwipeModel extends BaseModel<ISwipe> {
   }
 
   /**
+   * Delete the most recent swipe for a user
+   */
+  async deleteLastSwipe(userId: string): Promise<DbResponse<ISwipe | null>> {
+    const client = await this.db.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Find the most recent swipe for this user
+      const findQuery = `
+        SELECT id, user_id, event_id, direction, created_at, updated_at
+        FROM swipes
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+      
+      const findResult = await client.query(findQuery, [userId]);
+      
+      if (findResult.rowCount === 0) {
+        await client.query('COMMIT');
+        return {
+          success: true,
+          data: null // No swipes to delete
+        };
+      }
+
+      const swipe = findResult.rows[0];
+
+      // Delete the swipe
+      await client.query(
+        'DELETE FROM swipes WHERE id = $1',
+        [swipe.id]
+      );
+
+      await client.query('COMMIT');
+      
+      return {
+        success: true,
+        data: swipe
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      logger.error('Error deleting last swipe:', error);
+      return {
+        success: false,
+        error: 'Failed to delete last swipe'
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Get user's swipe statistics
    */
   async getUserSwipeStats(userId: string): Promise<DbResponse<IUserSwipeStats>> {

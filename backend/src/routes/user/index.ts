@@ -94,6 +94,12 @@ router.get(
   handleRequest((req, res) => swipeController.getSwipeStats(req as AuthenticatedUserRequest, res))
 );
 
+router.delete(
+  '/swipes/latest',
+  authenticateUser,
+  handleRequest((req, res) => swipeController.undoLastSwipe(req as AuthenticatedUserRequest, res))
+);
+
 // Recommendation routes
 router.get(
   '/recommendations',

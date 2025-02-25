@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
+import { IoRefreshOutline } from 'react-icons/io5';
 import { IEvent } from '../../types/event';
 import { IRecommendationResponse, IRecommendationScore } from '../../types/recommendation';
 import { userEventApi } from '../../services/api';
@@ -42,6 +43,42 @@ const ErrorText = styled.div`
   font-size: 18px;
   text-align: center;
   padding: 20px;
+`;
+
+const UndoButton = styled.button`
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  z-index: 100;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateX(-50%) scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: translateX(-50%) scale(1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  svg {
+    font-size: 24px;
+    color: #333;
+  }
 `;
 
 interface CardDeckProps {
@@ -92,6 +129,8 @@ export const CardDeck: React.FC<CardDeckProps> = ({
   const [initialLoading, setInitialLoading] = useState(true);
   const [noMoreCardsToShow, setNoMoreCardsToShow] = useState(false);
   const [seenEventIds] = useState(new Set<string>());
+  const [lastSwipedEvent, setLastSwipedEvent] = useState<IEvent | null>(null);
+  const [undoIsLoading, setUndoIsLoading] = useState(false);
 
   const debouncedFetchEvents = useDebounce(async () => {
     if (!hasMoreEvents || loading || error) return;
@@ -262,6 +301,9 @@ if (events.length === 0) {
       setSwipedEventIds(prev => [...prev, currentEvent.id]);
       seenEventIds.add(currentEvent.id);
       
+      // Store the last swiped event for possible undo
+      setLastSwipedEvent(currentEvent);
+      
       setEventQueue(prev => {
         const newQueue = prev.slice(1);
         // If queue will be empty and no more events, show end message
@@ -273,6 +315,45 @@ if (events.length === 0) {
     } catch (err) {
       console.error('Error recording swipe:', err);
       setError('Не удалось сохранить ваше действие. Пожалуйста, попробуйте снова.');
+    }
+  };
+
+  const handleUndo = async () => {
+    if (!lastSwipedEvent || undoIsLoading) return;
+    
+    try {
+      setUndoIsLoading(true);
+      setError(null);
+      
+      // Call the API to undo the last swipe
+      const result = await userEventApi.undoLastSwipe();
+      
+      if (result && result.event_id === lastSwipedEvent.id) {
+        // Remove this event from the swiped events list
+        setSwipedEventIds(prev => prev.filter(id => id !== lastSwipedEvent.id));
+        
+        // Add the event back to the front of the queue
+        setEventQueue(prev => [lastSwipedEvent, ...prev]);
+        
+        // Reset the last swiped event
+        setLastSwipedEvent(null);
+        
+        // Make sure we're not showing the empty state
+        setNoMoreCardsToShow(false);
+      } else {
+        // Handle case where API might have returned a different event
+        console.warn('Undo returned a different event ID than expected');
+        
+        // Refresh the queue instead of restoring a specific event
+        if (eventQueue.length < 3) {
+          debouncedFetchEvents();
+        }
+      }
+    } catch (err) {
+      console.error('Error undoing swipe:', err);
+      setError('Не удалось отменить последнее действие. Пожалуйста, попробуйте снова.');
+    } finally {
+      setUndoIsLoading(false);
     }
   };
 
@@ -297,7 +378,20 @@ if (events.length === 0) {
   if (noMoreCardsToShow && eventQueue.length === 0 && !loading && !initialLoading) {
     return (
       <DeckContainer>
-        <LoadingText>На данный момент это все карточки</LoadingText>
+        <CardContainer>
+          <LoadingText>На данный момент это все карточки</LoadingText>
+          
+          {lastSwipedEvent && (
+            <UndoButton 
+              onClick={handleUndo} 
+              disabled={undoIsLoading}
+              aria-label="Отменить последнее действие"
+              title="Отменить последнее действие"
+            >
+              <IoRefreshOutline />
+            </UndoButton>
+          )}
+        </CardContainer>
       </DeckContainer>
     );
   }
@@ -325,6 +419,17 @@ if (events.length === 0) {
             </StackedCardWrapper>
           ))}
         </AnimatePresence>
+        
+        {lastSwipedEvent && (
+          <UndoButton 
+            onClick={handleUndo} 
+            disabled={undoIsLoading}
+            aria-label="Отменить последнее действие"
+            title="Отменить последнее действие"
+          >
+            <IoRefreshOutline />
+          </UndoButton>
+        )}
       </CardContainer>
     </DeckContainer>
   );

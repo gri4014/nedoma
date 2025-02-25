@@ -184,6 +184,21 @@ const userEventApi = {
     // Extract event data from the swipe objects
     return response.data.data.map((item: any) => item.event);
   },
+
+  undoLastSwipe: async (): Promise<{ event_id: string } | null> => {
+    try {
+      const response = await api.delete<any>('/user/swipes/latest');
+      if (response.data.success && response.data.data) {
+        return {
+          event_id: response.data.data.event_id
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error undoing last swipe:', error);
+      return null;
+    }
+  },
 };
 
 // Category API methods
