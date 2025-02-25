@@ -81,11 +81,14 @@ export class SwipeModel extends BaseModel<ISwipe> {
   async getUserSwipes(userId: string, direction?: SwipeDirection): Promise<DbResponse<Array<ISwipe & { event: any }>>> {
     try {
       const query = `
-        SELECT s.*, e.*
+        SELECT s.*, e.*,
+          array_agg(DISTINCT jsonb_build_object('tag_id', et.tag_id, 'values', et.selected_values)) as tag_values
         FROM swipes s
         JOIN events e ON s.event_id = e.id
+        LEFT JOIN event_tags et ON e.id = et.event_id
         WHERE s.user_id = $1
         ${direction ? 'AND s.direction = $2' : ''}
+        GROUP BY s.id, e.id
         ORDER BY s.created_at DESC
       `;
 
@@ -94,24 +97,37 @@ export class SwipeModel extends BaseModel<ISwipe> {
 
       return {
         success: true,
-        data: result.rows.map(row => ({
-          id: row.id,
-          user_id: row.user_id,
-          event_id: row.event_id,
-          direction: row.direction,
-          created_at: row.created_at,
-          updated_at: row.updated_at,
-          event: {
-            id: row.event_id,
-            name: row.name,
-            short_description: row.short_description,
-            image_urls: row.image_urls,
-            event_dates: row.event_dates,
-            address: row.address,
-            is_free: row.is_free,
-            price_range: row.price_range
+        data: result.rows.map(row => {
+          // Process tags similar to EventModel
+          let tags: Record<string, string[]> = {};
+          if (row.tag_values && row.tag_values[0] !== null) {
+            row.tag_values.forEach((tv: { tag_id: string; values: string[] }) => {
+              if (tv.values && tv.values.length > 0) {
+                tags[tv.tag_id] = tv.values;
+              }
+            });
           }
-        }))
+          
+          return {
+            id: row.id,
+            user_id: row.user_id,
+            event_id: row.event_id,
+            direction: row.direction,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            event: {
+              id: row.event_id,
+              name: row.name,
+              short_description: row.short_description,
+              image_urls: row.image_urls,
+              event_dates: row.event_dates,
+              address: row.address,
+              is_free: row.is_free,
+              price_range: row.price_range,
+              tags: tags
+            }
+          };
+        })
       };
     } catch (error) {
       logger.error('Error getting user swipes:', error);

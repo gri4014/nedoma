@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
 import { CardDeck } from '../components/swipe/CardDeck';
+import { SavedEventsTab } from '../components/saved/SavedEventsTab';
+import { TabNavigation } from '../components/common/TabNavigation';
 import { IEvent } from '../types/event';
 import { userEventApi } from '../services/api';
 
@@ -9,19 +11,45 @@ const PageContainer = styled.div`
   min-height: 100vh;
   background-color: #121212;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+`;
+
+const ContentContainer = styled.div`
+  flex: 1;
+  display: flex;
+  align-items: stretch;
   justify-content: center;
-  padding: 20px;
+  padding: 0 20px 20px 20px;
+  min-height: 0; /* Required for proper flex behavior with scrolling */
 `;
 
 const DeckContainer = styled.div`
   width: 100%;
   max-width: 400px;
-  height: 600px;
+  min-height: 600px;
   position: relative;
 `;
 
+const SavedContainer = styled.div`
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 0;
+`;
+
+const TabContainer = styled(TabNavigation)`
+  z-index: 1;
+`;
+
+const tabs = [
+  { id: 'cards', label: 'Карточки' },
+  { id: 'saved', label: 'Сохранённое' }
+];
+
 export const EventsPage: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('cards');
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleSwipeLeft = async (event: IEvent) => {
@@ -62,13 +90,26 @@ export const EventsPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <DeckContainer>
-        <CardDeck 
-          onSwipeLeft={handleSwipeLeft}
-          onSwipeRight={handleSwipeRight}
-          onSwipeUp={handleSwipeUp}
-        />
-      </DeckContainer>
+      <TabContainer
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+      <ContentContainer>
+        {activeTab === 'cards' ? (
+          <DeckContainer>
+            <CardDeck 
+              onSwipeLeft={handleSwipeLeft}
+              onSwipeRight={handleSwipeRight}
+              onSwipeUp={handleSwipeUp}
+            />
+          </DeckContainer>
+        ) : (
+          <SavedContainer>
+            <SavedEventsTab />
+          </SavedContainer>
+        )}
+      </ContentContainer>
     </PageContainer>
   );
 };

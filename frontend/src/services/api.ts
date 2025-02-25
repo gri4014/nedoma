@@ -175,12 +175,14 @@ const userEventApi = {
   // Get user's interested and planning to go events
   getInterestedEvents: async (): Promise<IEvent[]> => {
     const response = await api.get<any>('/user/swipes/interested');
-    return response.data.data;
+    // Extract event data from the swipe objects
+    return response.data.data.map((item: any) => item.event);
   },
 
   getPlanningEvents: async (): Promise<IEvent[]> => {
     const response = await api.get<any>('/user/swipes/planning');
-    return response.data.data;
+    // Extract event data from the swipe objects
+    return response.data.data.map((item: any) => item.event);
   },
 };
 
