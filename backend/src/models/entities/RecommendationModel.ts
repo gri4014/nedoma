@@ -187,6 +187,33 @@ export class RecommendationModel extends BaseModel<IEvent> {
           error: 'Failed to get user preferences'
         };
       }
+      
+      // Get all previously swiped events for this user (in any direction)
+      logger.info(`Fetching previously swiped events for user ${userId}`);
+      const swipedEventsQuery = `
+        SELECT DISTINCT event_id 
+        FROM swipes 
+        WHERE user_id = $1
+      `;
+      
+      const swipedEventsResult = await this.db.query(swipedEventsQuery, [userId]);
+      
+      // Extract event IDs from the query result
+      const userSwipedEventIds = swipedEventsResult.rows.map(row => row.event_id);
+      
+      // Combine with any explicitly provided excludeEventIds
+      let allExcludedIds = [...userSwipedEventIds];
+      if (filters.excludeEventIds && filters.excludeEventIds.length > 0) {
+        allExcludedIds = [...allExcludedIds, ...filters.excludeEventIds.filter(Boolean)];
+      }
+      
+      // Update filters with combined excluded IDs
+      filters = {
+        ...filters,
+        excludeEventIds: allExcludedIds
+      };
+      
+      logger.info(`Excluded ${userSwipedEventIds.length} previously swiped events for user ${userId}`);
 
       const preferences = preferencesResult.data;
       const finalSettings = { ...this.defaultSettings, ...settings };
@@ -240,8 +267,16 @@ export class RecommendationModel extends BaseModel<IEvent> {
       // Get events with their tags that match user's subcategory preferences
       const excludeIds = filters.excludeEventIds?.filter(Boolean) || [];
       if (excludeIds.length > 0) {
-        conditions.push(`e.id NOT IN (${excludeIds.map(() => `$${paramCount++}`).join(', ')})`);
-        values.push(...excludeIds);
+        if (excludeIds.length > 500) {
+          // For large exclusion lists, use array contains operator for better performance
+          conditions.push(`NOT (e.id = ANY($${paramCount}))`);
+          values.push(excludeIds);
+          paramCount++;
+        } else {
+          // For smaller lists, use standard NOT IN syntax
+          conditions.push(`e.id NOT IN (${excludeIds.map(() => `$${paramCount++}`).join(', ')})`);
+          values.push(...excludeIds);
+        }
       }
 
       const query = `
