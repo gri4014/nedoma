@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { CardDeck } from '../components/swipe/CardDeck';
 import { SavedEventsTab } from '../components/saved/SavedEventsTab';
 import { TabNavigation } from '../components/common/TabNavigation';
 import { IEvent } from '../types/event';
-import { userEventApi } from '../services/api';
+import api, { userEventApi } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
 
 const PageContainer = styled.div`
   width: 100%;
@@ -12,6 +14,27 @@ const PageContainer = styled.div`
   background-color: #121212;
   display: flex;
   flex-direction: column;
+  position: relative;
+`;
+
+const LogoutButton = styled.button`
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background-color: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+  }
 `;
 
 const ContentContainer = styled.div`
@@ -51,6 +74,15 @@ const tabs = [
 export const EventsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState('cards');
   const [isProcessing, setIsProcessing] = useState(false);
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    // Clear API authorization header explicitly
+    api.defaults.headers.common['Authorization'] = '';
+    navigate('/');
+  };
 
   const handleSwipeLeft = async (event: IEvent) => {
     try {
@@ -90,6 +122,9 @@ export const EventsPage: React.FC = () => {
 
   return (
     <PageContainer>
+      <LogoutButton onClick={handleLogout}>
+        Выйти
+      </LogoutButton>
       <TabContainer
         tabs={tabs}
         activeTab={activeTab}

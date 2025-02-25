@@ -238,18 +238,39 @@ if (events.length === 0) {
         setInitialLoading(true);
         setError(null);
         
+        // Fetch all previously swiped events first
+        try {
+          // Get interested events (right swipes)
+          const interestedEvents = await userEventApi.getInterestedEvents();
+          // Get planning events (up swipes)
+          const planningEvents = await userEventApi.getPlanningEvents();
+          
+          // Combine all swiped event IDs
+          const previouslySwipedIds = [
+            ...interestedEvents.map(event => event.id),
+            ...planningEvents.map(event => event.id)
+          ];
+          
+          // Add these to our tracked swiped events
+          setSwipedEventIds(prev => [...prev, ...previouslySwipedIds]);
+        } catch (swipeErr) {
+          console.error('Error loading previous swipes:', swipeErr);
+          // Continue even if this fails - we'll just show some already-swiped cards
+        }
+        
+        // Now fetch recommendations, excluding all known swiped events
         const response = await userEventApi.getRecommendedEvents(1, 6, swipedEventIds);
-if (!response.success) {
-  throw new Error(response.error || 'Failed to get recommendations');
-}
-const events = response.data.map(rec => rec.event);
+        if (!response.success) {
+          throw new Error(response.error || 'Failed to get recommendations');
+        }
+        const events = response.data.map(rec => rec.event);
 
-// If we got no events, show empty state
-if (events.length === 0) {
-  setNoMoreCardsToShow(true);
-  setHasMoreEvents(false);
-  return;
-}
+        // If we got no events, show empty state
+        if (events.length === 0) {
+          setNoMoreCardsToShow(true);
+          setHasMoreEvents(false);
+          return;
+        }
         
         // Filter out any swiped events and mark them as seen
         const filteredEvents = events.filter(event => !swipedEventIds.includes(event.id));

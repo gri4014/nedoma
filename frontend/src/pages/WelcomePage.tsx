@@ -70,9 +70,27 @@ const WelcomePage = () => {
       if (token) {
         try {
           api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-          // Try to get user preferences to verify token is valid
-          // Just validate the token by making a request
-          await api.get('/user/preferences/categories');
+          
+          // Check if user already has preferences set
+          try {
+            // Get category preferences
+            const categoryPrefsResponse = await api.get('/user/preferences/categories');
+            const categoryPrefs = categoryPrefsResponse.data;
+            
+            // Get tag preferences
+            const tagPrefsResponse = await api.get('/user/preferences/tags');
+            const tagPrefs = tagPrefsResponse.data;
+            
+            // If user has both category and tag preferences, go directly to events page
+            if (Array.isArray(categoryPrefs) && categoryPrefs.length > 0 && 
+                Array.isArray(tagPrefs) && tagPrefs.length > 0) {
+              navigate('/events', { replace: true });
+              return;
+            }
+          } catch (prefsError) {
+            console.error('Error checking preferences:', prefsError);
+            // If there's an error checking preferences, continue with normal flow
+          }
         } catch (error) {
           // Token invalid or expired, remove it
           localStorage.removeItem('token');
@@ -114,7 +132,28 @@ const WelcomePage = () => {
       // Clear any existing error
       setError('');
 
-      // Navigate to bubbles page
+      // Check if user already has preferences set
+      try {
+        // Get category preferences
+        const categoryPrefsResponse = await api.get('/user/preferences/categories');
+        const categoryPrefs = categoryPrefsResponse.data;
+        
+        // Get tag preferences
+        const tagPrefsResponse = await api.get('/user/preferences/tags');
+        const tagPrefs = tagPrefsResponse.data;
+        
+        // If user has both category and tag preferences, go directly to events page
+        if (Array.isArray(categoryPrefs) && categoryPrefs.length > 0 && 
+            Array.isArray(tagPrefs) && tagPrefs.length > 0) {
+          navigate('/events', { replace: true });
+          return;
+        }
+      } catch (prefsError) {
+        console.error('Error checking preferences:', prefsError);
+        // If there's an error checking preferences, continue with normal flow
+      }
+
+      // If we get here, user doesn't have preferences set, navigate to bubbles page
       navigate('/bubbles', { replace: true });
     } catch (error) {
       console.error('Error creating user:', error);
