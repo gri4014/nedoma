@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useImperativeHandle, forwardRef } from 'react';
 import { useDebounce } from '../../hooks/useDebounce';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
-import { IoRefreshOutline } from 'react-icons/io5';
 import { IEvent } from '../../types/event';
 import { IRecommendationResponse, IRecommendationScore } from '../../types/recommendation';
 import { userEventApi } from '../../services/api';
@@ -45,46 +44,15 @@ const ErrorText = styled.div`
   padding: 20px;
 `;
 
-const UndoButton = styled.button`
-  position: absolute;
-  bottom: -60px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  background-color: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-  cursor: pointer;
-  z-index: 100;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    transform: translateX(-50%) scale(1.1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: translateX(-50%) scale(1);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  }
-  
-  svg {
-    font-size: 24px;
-    color: #333;
-  }
-`;
-
 interface CardDeckProps {
   onSwipeLeft?: (event: IEvent) => void;
   onSwipeRight?: (event: IEvent) => void;
   onSwipeUp?: (event: IEvent) => void;
+}
+
+// Define the imperative handle interface
+export interface CardDeckHandle {
+  handleUndo: () => Promise<void>;
 }
 
 const cardVariants = {
@@ -112,11 +80,11 @@ const cardVariants = {
   }
 };
 
-export const CardDeck: React.FC<CardDeckProps> = ({
+export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
   onSwipeLeft,
   onSwipeRight,
   onSwipeUp
-}) => {
+}, ref) => {
   const [eventQueue, setEventQueue] = useState<IEvent[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -153,20 +121,22 @@ export const CardDeck: React.FC<CardDeckProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await userEventApi.getRecommendedEvents(currentPage, 3, swipedEventIds);
-if (!response.success) {
-  throw new Error(response.error || 'Failed to get recommendations');
-}
-const events = response.data.map(rec => rec.event);
+      // Make a fresh copy of the swipedEventIds array to ensure we're using the latest data
+      const currentSwipedIds = [...swipedEventIds];
+      const response = await userEventApi.getRecommendedEvents(currentPage, 3, currentSwipedIds);
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to get recommendations');
+      }
+      const events = response.data.map(rec => rec.event);
 
-// Update hasMoreEvents based on both response and filtering
-if (events.length === 0) {
-  setHasMoreEvents(false);
-  if (eventQueue.length === 0) {
-    setNoMoreCardsToShow(true);
-  }
-  return;
-}
+      // Update hasMoreEvents based on both response and filtering
+      if (events.length === 0) {
+        setHasMoreEvents(false);
+        if (eventQueue.length === 0) {
+          setNoMoreCardsToShow(true);
+        }
+        return;
+      }
       
       if (!events || events.length === 0) {
         setHasMoreEvents(false);
@@ -174,8 +144,9 @@ if (events.length === 0) {
       }
 
       // Filter out events we've already seen or swiped
+      // Double check to ensure we don't show any previously swiped events
       const newEvents = events.filter(event => 
-        !seenEventIds.has(event.id) &&
+        !seenEventIds.has(event.id) && 
         !swipedEventIds.includes(event.id)
       );
 
@@ -232,34 +203,54 @@ if (events.length === 0) {
     };
   }, []);
 
+  // Load previously swiped events
+  const loadPreviousSwipes = async () => {
+    try {
+      // Get left swipes through a direct API call (if available)
+      let leftSwipeIds: string[] = [];
+      try {
+        // If your API has a method for getting left swipes, use it here
+        // The current API doesn't expose this, so we'll use an empty array
+        // leftSwipeIds = (await userEventApi.getLeftSwipedEvents()).map(e => e.id);
+      } catch (err) {
+        console.error('Error loading left swipes:', err);
+      }
+      
+      // Get interested events (right swipes)
+      const interestedEvents = await userEventApi.getInterestedEvents();
+      
+      // Get planning events (up swipes)
+      const planningEvents = await userEventApi.getPlanningEvents();
+      
+      // Combine all swiped event IDs
+      return [...leftSwipeIds, 
+              ...interestedEvents.map(event => event.id), 
+              ...planningEvents.map(event => event.id)];
+    } catch (err) {
+      console.error('Error loading all previous swipes:', err);
+      return [];
+    }
+  };
+
   useEffect(() => {
     const initialFetch = async () => {
       try {
         setInitialLoading(true);
         setError(null);
         
-        // Fetch all previously swiped events first
-        try {
-          // Get interested events (right swipes)
-          const interestedEvents = await userEventApi.getInterestedEvents();
-          // Get planning events (up swipes)
-          const planningEvents = await userEventApi.getPlanningEvents();
-          
-          // Combine all swiped event IDs
-          const previouslySwipedIds = [
-            ...interestedEvents.map(event => event.id),
-            ...planningEvents.map(event => event.id)
-          ];
-          
-          // Add these to our tracked swiped events
-          setSwipedEventIds(prev => [...prev, ...previouslySwipedIds]);
-        } catch (swipeErr) {
-          console.error('Error loading previous swipes:', swipeErr);
-          // Continue even if this fails - we'll just show some already-swiped cards
-        }
+        // Fetch all previously swiped events BEFORE loading recommendations
+        const previouslySwipedIds = await loadPreviousSwipes();
+        
+        // Update our state with all known swiped events
+        setSwipedEventIds(prev => {
+          // Create a Set to deduplicate any repeated IDs
+          const uniqueIds = new Set([...prev, ...previouslySwipedIds]);
+          return [...uniqueIds];
+        });
         
         // Now fetch recommendations, excluding all known swiped events
-        const response = await userEventApi.getRecommendedEvents(1, 6, swipedEventIds);
+        // Wait a moment to ensure state is updated
+        const response = await userEventApi.getRecommendedEvents(1, 6, previouslySwipedIds);
         if (!response.success) {
           throw new Error(response.error || 'Failed to get recommendations');
         }
@@ -273,8 +264,14 @@ if (events.length === 0) {
         }
         
         // Filter out any swiped events and mark them as seen
-        const filteredEvents = events.filter(event => !swipedEventIds.includes(event.id));
-        filteredEvents.forEach(event => seenEventIds.add(event.id));
+        const filteredEvents = events.filter(event => {
+          // Strict filtering to ensure we don't show already swiped events
+          const alreadySwiped = swipedEventIds.includes(event.id);
+          if (!alreadySwiped) {
+            seenEventIds.add(event.id); // Only mark unswiped events as seen
+          }
+          return !alreadySwiped;
+        });
         
         setEventQueue(filteredEvents);
         setCurrentPage(2);
@@ -377,6 +374,13 @@ if (events.length === 0) {
       setUndoIsLoading(false);
     }
   };
+  
+  // Expose methods to parent components via ref
+  useImperativeHandle(ref, () => ({
+    handleUndo: async () => {
+      return handleUndo();
+    }
+  }));
 
   if (initialLoading) {
     return (
@@ -401,17 +405,6 @@ if (events.length === 0) {
       <DeckContainer>
         <CardContainer>
           <LoadingText>На данный момент это все карточки</LoadingText>
-          
-          {lastSwipedEvent && (
-            <UndoButton 
-              onClick={handleUndo} 
-              disabled={undoIsLoading}
-              aria-label="Отменить последнее действие"
-              title="Отменить последнее действие"
-            >
-              <IoRefreshOutline />
-            </UndoButton>
-          )}
         </CardContainer>
       </DeckContainer>
     );
@@ -440,18 +433,7 @@ if (events.length === 0) {
             </StackedCardWrapper>
           ))}
         </AnimatePresence>
-        
-        {lastSwipedEvent && (
-          <UndoButton 
-            onClick={handleUndo} 
-            disabled={undoIsLoading}
-            aria-label="Отменить последнее действие"
-            title="Отменить последнее действие"
-          >
-            <IoRefreshOutline />
-          </UndoButton>
-        )}
       </CardContainer>
     </DeckContainer>
   );
-};
+});
