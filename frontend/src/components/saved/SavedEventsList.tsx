@@ -15,18 +15,15 @@ const ListContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
-  height: 100%;
-  overflow-y: auto;
+  width: 100%;
+  align-items: stretch;
+  justify-content: flex-start; /* Ensure content starts from the top */
   
   /* Enable smooth scrolling */
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   
   /* Ensure proper spacing around content */
-  > *:first-child {
-    margin-top: 8px;
-  }
-  
   > *:last-child {
     margin-bottom: 24px;
   }
@@ -36,9 +33,11 @@ const EmptyState = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 200px;
+  min-height: 300px;
+  width: 100%;
   color: rgba(255, 255, 255, 0.5);
   font-size: 16px;
+  padding-top: 24px; /* Push empty state message down from the top a bit */
 `;
 
 const LoadingText = styled.div`

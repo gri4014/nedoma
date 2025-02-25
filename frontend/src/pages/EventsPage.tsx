@@ -40,18 +40,22 @@ const LogoutButton = styled.button`
 const ContentContainer = styled.div`
   flex: 1;
   display: flex;
-  align-items: stretch;
+  align-items: flex-end;
   justify-content: center;
-  padding: 0 20px 20px 20px;
-  padding-bottom: 84px; /* Space for bottom tab bar */
+  padding: 0 20px;
+  padding-bottom: 84px; /* Space for bottom tab bar - exactly matching its height */
   min-height: 0; /* Required for proper flex behavior with scrolling */
+  margin-top: auto; /* Push content to the bottom */
 `;
 
 const DeckContainer = styled.div`
   width: 100%;
   max-width: 400px;
-  min-height: 600px;
   position: relative;
+  display: flex;
+  align-items: flex-end;
+  margin-top: auto; /* Push everything to the bottom */
+  padding-bottom: 20px; /* Small padding from bottom tab bar */
 `;
 
 const SavedContainer = styled.div`
@@ -61,6 +65,7 @@ const SavedContainer = styled.div`
   flex-direction: column;
   position: relative;
   z-index: 0;
+  padding-bottom: 0; /* No bottom padding needed since tabs are fixed */
 `;
 
 export const EventsPage: React.FC = () => {

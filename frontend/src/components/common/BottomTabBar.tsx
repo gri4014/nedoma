@@ -48,7 +48,7 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   }
 
   svg {
-    font-size: 24px;
+    font-size: 28px; /* Increased by additional 8% from 26px */
     margin-bottom: 4px;
   }
 `;

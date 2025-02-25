@@ -14,6 +14,28 @@ const Container = styled.div`
   position: relative;
 `;
 
+const EventsContainer = styled.div`
+  flex: 1;
+  padding-top: 50px; /* Space for future logo */
+  margin-bottom: 50px; /* Space for tab navigation */
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+`;
+
+const TabNavigationContainer = styled.div`
+  position: fixed;
+  bottom: 64px; /* Position right above the bottom tab bar */
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 5;
+  background-color: #121212;
+  border-top: 1px solid #1f1f1f;
+  box-shadow: 0px -2px 8px rgba(0, 0, 0, 0.5);
+`;
+
 const LoadingText = styled.div`
   text-align: center;
   color: rgba(255, 255, 255, 0.7);
@@ -80,17 +102,21 @@ export const SavedEventsTab: React.FC = () => {
 
   return (
     <Container>
-      <TabNavigation
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        variant="secondary"
-      />
-      <SavedEventsList
-        events={currentEvents}
-        onEventRemoved={handleEventRemoved}
-        emptyMessage={emptyMessage}
-      />
+      <EventsContainer>
+        <SavedEventsList
+          events={currentEvents}
+          onEventRemoved={handleEventRemoved}
+          emptyMessage={emptyMessage}
+        />
+      </EventsContainer>
+      <TabNavigationContainer>
+        <TabNavigation
+          tabs={tabs}
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          variant="secondary"
+        />
+      </TabNavigationContainer>
     </Container>
   );
 };

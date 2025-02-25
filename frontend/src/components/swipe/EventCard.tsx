@@ -44,7 +44,7 @@ const ContentOverlay = styled.div`
   bottom: 0;
   left: 0;
   right: 0;
-  height: 25%;
+  height: 22%; /* Slightly reduced to maintain visual balance with taller card */
   background: transparent;
   padding: 16px;
   padding-top: 32px;
@@ -59,7 +59,7 @@ const GradientOverlay = styled.div`
   bottom: 0;
   left: 0;
   right: 0;
-  height: 70%;
+  height: 65%; /* Slightly reduced to maintain visual balance with taller card */
   background: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.95) 85%, black 100%);
   pointer-events: none;
   z-index: 1;

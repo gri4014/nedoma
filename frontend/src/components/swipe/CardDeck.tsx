@@ -9,17 +9,16 @@ import { SwipeCard } from './SwipeCard';
 
 const DeckContainer = styled.div`
   width: 100%;
-  height: 100%;
   position: relative;
   display: flex;
-  align-items: center;
   justify-content: center;
+  flex: 1;
 `;
 
 const CardContainer = styled.div`
   width: 100%;
   max-width: 400px;
-  height: 600px;
+  height: 598px; // Increased by 15% from 520px
   position: relative;
 `;
 
