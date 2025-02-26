@@ -11,6 +11,7 @@ import AdminTagsPage from './pages/AdminTagsPage';
 import WelcomePage from './pages/WelcomePage';
 import BubblesPage from './pages/BubblesPage';
 import TagSelectionPage from './pages/TagSelectionPage';
+import SettingsPage from './pages/SettingsPage';
 import { EventsPage } from './pages/EventsPage';
 
 const AppRoutes = () => {
@@ -42,6 +43,7 @@ const AppRoutes = () => {
       <Route path="/bubbles" element={<BubblesPage />} />
       <Route path="/tags" element={<TagSelectionPage />} />
       <Route path="/events" element={<EventsPage />} />
+      <Route path="/settings" element={<SettingsPage />} />
 
       {/* Default Route - go to bubbles if authenticated, otherwise welcome */}
       <Route path="/" element={

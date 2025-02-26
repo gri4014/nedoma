@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { CardDeck, CardDeckHandle } from '../components/swipe/CardDeck';
 import { SavedEventsTab } from '../components/saved/SavedEventsTab';
@@ -69,17 +69,42 @@ const SavedContainer = styled.div`
 `;
 
 export const EventsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('cards');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const cardDeckRef = useRef<CardDeckHandle>(null);
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState('cards');
+
+  React.useEffect(() => {
+    // Set active tab when location state changes
+    if (location.state?.initialTab) {
+      setActiveTab(location.state.initialTab);
+    }
+  }, [location.state]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const cardDeckRef = useRef<CardDeckHandle>(null);
 
   const handleLogout = () => {
     logout();
     // Clear API authorization header explicitly
     api.defaults.headers.common['Authorization'] = '';
     navigate('/');
+  };
+
+  const handleTabChange = (tabId: string) => {
+    switch (tabId) {
+      case 'settings':
+        navigate('/settings', { state: { fromTab: activeTab } });
+        break;
+      case 'saved':
+        navigate('/events', { state: { initialTab: 'saved' }, replace: true });
+        break;
+      case 'cards':
+        navigate('/events', { state: { initialTab: 'cards' }, replace: true });
+        break;
+      case 'idea':
+        console.log('Idea feature is not implemented yet');
+        break;
+    }
   };
 
   const handleUndoClick = () => {
@@ -128,7 +153,7 @@ export const EventsPage: React.FC = () => {
       </ContentContainer>
       <BottomTabBar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         onUndoClick={handleUndoClick}
       />
     </PageContainer>

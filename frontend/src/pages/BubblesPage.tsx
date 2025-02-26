@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import api from '../services/api';
 
@@ -142,6 +142,10 @@ const BubblesPage = () => {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
+  const location = useLocation();
+  const fromSettings = location.state?.fromSettings;
+  const returnTab = location.state?.returnTab || 'cards';
+  
   const handleContinue = async () => {
     if (isLoading || isFetchingCategories) return;
 
@@ -166,7 +170,7 @@ const BubblesPage = () => {
       console.log('Sending preferences:', preferencesToSend);
 
       await api.post('/user/preferences/categories', { preferences: preferencesToSend });
-      navigate('/tags');
+      navigate('/tags', { state: { fromSettings, returnTab } });
     } catch (error: any) {
       console.error('Error saving preferences:', error);
       

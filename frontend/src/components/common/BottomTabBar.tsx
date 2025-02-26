@@ -93,8 +93,8 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
       onTabChange(tabId);
     }
     
-    // Idea and Settings tabs are placeholders for now
-    if (tabId === 'idea' || tabId === 'settings') {
+    // Idea tab is a placeholder for now
+    if (tabId === 'idea') {
       console.log(`${tabId} feature is not implemented yet`);
     }
   };

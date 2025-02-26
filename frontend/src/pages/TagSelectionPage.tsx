@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import api from '../services/api';
 
@@ -241,12 +241,17 @@ const TagSelectionPage = () => {
     });
   };
 
+  const location = useLocation();
+  const fromSettings = location.state?.fromSettings;
+  const returnTab = location.state?.returnTab || 'cards';
+
   const handleContinue = async () => {
     setIsLoading(true);
     setError(null);
     try {
       await api.post('/user/preferences/tags', { preferences: selectedTags });
-      navigate('/events');
+      // If coming from settings, return to events page
+      navigate('/events', { replace: true, state: { initialTab: returnTab } });
     } catch (error) {
       console.error('Error saving tag preferences:', error);
       setError('Ошибка сохранения тегов. Пожалуйста, попробуйте снова.');
