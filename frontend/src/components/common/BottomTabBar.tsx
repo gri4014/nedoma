@@ -36,7 +36,7 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   justify-content: center;
   background: transparent;
   border: none;
-  color: ${props => props.$isActive ? '#2840CF' : 'rgba(255, 255, 255, 0.8)'};
+  color: ${props => props.$isActive ? '#3049DF' : 'rgba(255, 255, 255, 0.8)'};
   font-size: 10px;
   width: 56px;
   height: 54px;
@@ -44,7 +44,7 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   transition: color 0.2s ease;
 
   &:hover {
-    color: ${props => props.$isActive ? '#2840CF' : '#ffffff'};
+    color: ${props => props.$isActive ? '#3049DF' : '#ffffff'};
   }
 
   svg {

@@ -4,8 +4,9 @@ import styled from 'styled-components';
 import { CardDeck, CardDeckHandle } from '../components/swipe/CardDeck';
 import { SavedEventsTab } from '../components/saved/SavedEventsTab';
 import { BottomTabBar } from '../components/common/BottomTabBar';
+import Logo from '../components/common/Logo';
 import { IEvent } from '../types/event';
-import api, { userEventApi } from '../services/api';
+import { userEventApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
 const PageContainer = styled.div`
@@ -17,26 +18,6 @@ const PageContainer = styled.div`
   position: relative;
 `;
 
-const LogoutButton = styled.button`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background-color: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 14px;
-  cursor: pointer;
-  z-index: 10;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-  }
-`;
-
 const ContentContainer = styled.div`
   flex: 1;
   display: flex;
@@ -45,7 +26,7 @@ const ContentContainer = styled.div`
   padding: 0 20px;
   padding-bottom: 84px; /* Space for bottom tab bar - exactly matching its height */
   min-height: 0; /* Required for proper flex behavior with scrolling */
-  margin-top: auto; /* Push content to the bottom */
+  margin-top: 75px; /* Space after fixed logo (25px logo padding + 25px padding bottom + 25px spacing) */
 `;
 
 const DeckContainer = styled.div`
@@ -69,7 +50,6 @@ const SavedContainer = styled.div`
 `;
 
 export const EventsPage: React.FC = () => {
-  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState('cards');
@@ -82,13 +62,6 @@ export const EventsPage: React.FC = () => {
   }, [location.state]);
   const [isProcessing, setIsProcessing] = useState(false);
   const cardDeckRef = useRef<CardDeckHandle>(null);
-
-  const handleLogout = () => {
-    logout();
-    // Clear API authorization header explicitly
-    api.defaults.headers.common['Authorization'] = '';
-    navigate('/');
-  };
 
   const handleTabChange = (tabId: string) => {
     switch (tabId) {
@@ -132,9 +105,7 @@ export const EventsPage: React.FC = () => {
 
   return (
     <PageContainer>
-      <LogoutButton onClick={handleLogout}>
-        Выйти
-      </LogoutButton>
+      <Logo />
       <ContentContainer>
         {activeTab === 'cards' ? (
           <DeckContainer>

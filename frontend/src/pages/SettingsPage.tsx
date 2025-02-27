@@ -2,40 +2,22 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { BottomTabBar } from '../components/common/BottomTabBar';
+import Logo from '../components/common/Logo';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
-
-const LogoutButton = styled.button`
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  background-color: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 4px;
-  padding: 8px 12px;
-  font-size: 14px;
-  cursor: pointer;
-  z-index: 10;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-    color: white;
-  }
-`;
 
 const Title = styled.h1`
   font-size: 24px;
   color: #FFFFFF;
-  margin: 70px 0 50px;
-  padding: 0 20px;
-  text-align: left;
+  position: absolute;
+  top: 95px;
+  left: 0;
+  right: 0;
+  text-align: center;
   z-index: 1;
   width: 100%;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
+  padding: 0 20px;
+  margin: 0;
 `;
 
 const PageContainer = styled.div`
@@ -48,11 +30,14 @@ const PageContainer = styled.div`
 `;
 
 const ContentContainer = styled.div`
-  flex: 1;
+  position: absolute;
+  top: 159px; /* 95px (title top) + 24px (title height) + 40px (spacing) */
+  left: 0;
+  right: 0;
+  bottom: 84px; /* Space for bottom tab bar */
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 20px 20px 84px; /* Top padding + Space for bottom tab bar */
+  padding: 0 20px;
 `;
 
 const SettingsContainer = styled.div`
@@ -61,10 +46,11 @@ const SettingsContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 20px; /* Space between buttons */
 `;
 
 const Button = styled.button`
-  background: #2840CF;
+  background: #3049DF;
   color: white;
   border: none;
   padding: 16px 32px;
@@ -72,14 +58,26 @@ const Button = styled.button`
   font-size: 18px;
   cursor: pointer;
   transition: all 0.2s ease;
+  width: 100%;
+  max-width: 400px;
   
   &:hover {
-    background: #1f32a8;
+    background: #2840CF;
     transform: translateY(-1px);
   }
 
   &:active {
     transform: translateY(0);
+  }
+`;
+
+const LogoutButton = styled(Button)`
+  background: transparent;
+  border: 1px solid #FF4444;
+  color: #FF4444;
+
+  &:hover {
+    background: rgba(255, 68, 68, 0.1);
   }
 `;
 
@@ -101,15 +99,16 @@ const SettingsPage = () => {
 
   return (
     <PageContainer>
-      <LogoutButton onClick={handleLogout}>
-        Выйти
-      </LogoutButton>
+      <Logo />
       <Title>Настройки</Title>
       <ContentContainer>
         <SettingsContainer>
           <Button onClick={handleClick}>
             Изменить предпочтения
           </Button>
+          <LogoutButton onClick={handleLogout}>
+            Выйти (для тест версии)
+          </LogoutButton>
         </SettingsContainer>
       </ContentContainer>
       <BottomTabBar
