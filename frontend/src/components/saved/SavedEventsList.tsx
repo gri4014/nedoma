@@ -35,14 +35,14 @@ const EmptyState = styled.div`
   justify-content: center;
   min-height: 300px;
   width: 100%;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(0, 0, 0, 0.5);
   font-size: 16px;
   padding-top: 24px; /* Push empty state message down from the top a bit */
 `;
 
 const LoadingText = styled.div`
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(0, 0, 0, 0.7);
   padding: 20px;
 `;
 

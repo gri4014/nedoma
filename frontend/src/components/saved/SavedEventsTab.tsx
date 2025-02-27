@@ -31,14 +31,14 @@ const TabNavigationContainer = styled.div`
   right: 0;
   width: 100%;
   z-index: 5;
-  background-color: #121212;
-  border-top: 1px solid #1f1f1f;
-  box-shadow: 0px -2px 8px rgba(0, 0, 0, 0.5);
+  background-color: #F9F7FE;
+  border-top: 1px solid #D8D0F0;
+  box-shadow: 0px -2px 8px rgba(0, 0, 0, 0.05);
 `;
 
 const LoadingText = styled.div`
   text-align: center;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(0, 0, 0, 0.7);
   padding: 20px;
 `;
 

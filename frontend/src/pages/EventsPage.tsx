@@ -12,7 +12,7 @@ import { useAuth } from '../contexts/AuthContext';
 const PageContainer = styled.div`
   width: 100%;
   min-height: 100vh;
-  background-color: #121212;
+  background-color: #F9F7FE;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -52,27 +52,30 @@ const SavedContainer = styled.div`
 export const EventsPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState('cards');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Initialize with location state if available, otherwise default to 'cards'
+    return location.state?.initialTab || 'cards';
+  });
 
-  React.useEffect(() => {
-    // Set active tab when location state changes
-    if (location.state?.initialTab) {
-      setActiveTab(location.state.initialTab);
-    }
-  }, [location.state]);
   const [isProcessing, setIsProcessing] = useState(false);
   const cardDeckRef = useRef<CardDeckHandle>(null);
 
   const handleTabChange = (tabId: string) => {
+    if (tabId === activeTab) return; // Prevent unnecessary state updates
+
     switch (tabId) {
       case 'settings':
-        navigate('/settings', { state: { fromTab: activeTab } });
+        navigate('/settings');
         break;
       case 'saved':
-        navigate('/events', { state: { initialTab: 'saved' }, replace: true });
-        break;
       case 'cards':
-        navigate('/events', { state: { initialTab: 'cards' }, replace: true });
+        setActiveTab(tabId); // Update local state immediately
+        // Update URL state without triggering a full navigation
+        window.history.replaceState(
+          { initialTab: tabId },
+          '',
+          window.location.pathname
+        );
         break;
       case 'idea':
         console.log('Idea feature is not implemented yet');
@@ -81,8 +84,7 @@ export const EventsPage: React.FC = () => {
   };
 
   const handleUndoClick = () => {
-    // Try to access the CardDeck's undo function if it's mounted
-    if (cardDeckRef.current && typeof cardDeckRef.current.handleUndo === 'function') {
+    if (cardDeckRef.current?.handleUndo) {
       cardDeckRef.current.handleUndo();
     } else {
       console.log('Undo button pressed, but no undo function available');

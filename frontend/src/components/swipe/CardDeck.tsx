@@ -31,7 +31,7 @@ const StackedCardWrapper = styled(motion.div)<{ $index: number }>`
 `;
 
 const LoadingText = styled.div`
-  color: white;
+  color: #808080;
   font-size: 18px;
   text-align: center;
 `;

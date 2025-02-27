@@ -1,21 +1,21 @@
 const theme = {
   colors: {
-    primary: '#007bff',
-    secondary: '#6c757d',
+    primary: '#6A4DFF', // Updated primary color to complement the new background
+    secondary: '#8E7DBC', // Updated secondary color
     error: '#dc3545',
     success: '#28a745',
     text: {
-      primary: '#212529',
-      secondary: '#6c757d',
-      white: '#ffffff'
+      primary: '#000000', // Changed to black
+      secondary: '#4A4A4A', // Darker secondary text
+      white: '#ffffff' // Keeping this for reference
     },
     background: {
-      default: '#f8f9fa',
-      paper: '#ffffff',
-      hover: '#e9ecef'
+      default: '#F9F7FE', // New background color
+      paper: '#FFFFFF',
+      hover: '#EFEAF9' // Lighter hover state
     },
-    border: '#dee2e6',
-    inputBg: '#ffffff'
+    border: '#D8D0F0', // Updated border color
+    inputBg: '#FFFFFF'
   },
   spacing: {
     xs: '4px',

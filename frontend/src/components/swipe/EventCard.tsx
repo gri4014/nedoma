@@ -5,7 +5,6 @@ import { IEvent } from '../../types/event';
 const CardContainer = styled.div`
   width: 100%;
   height: 100%;
-  border-radius: 12px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -20,8 +19,6 @@ const ImageSection = styled.div<{ $imageUrl?: string }>`
   background-size: cover;
   background-position: center;
   transition: background-image 0.3s ease;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
   background-image: ${props => props.$imageUrl ? `url(${props.$imageUrl})` : 'none'};
 `;
 

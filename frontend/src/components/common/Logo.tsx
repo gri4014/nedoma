@@ -10,18 +10,19 @@ const LogoContainer = styled.div`
   right: 0;
   z-index: 100;
   padding: 25px 0;
-  background-color: #121212;
+  background-color: #F9F7FE;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 `;
 
 const LogoImage = styled.img`
-  width: 120px;
+  width: 138px; /* 120px * 1.15 = 138px (15% larger) */
   height: auto;
 `;
 
 const Logo: React.FC = () => {
   return (
     <LogoContainer>
-      <LogoImage src="/logo.svg" alt="NEDOMA" />
+      <LogoImage src="/logo-black.svg" alt="NEDOMA" />
     </LogoContainer>
   );
 };

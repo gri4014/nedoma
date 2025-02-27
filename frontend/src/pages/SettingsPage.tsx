@@ -8,7 +8,7 @@ import api from '../services/api';
 
 const Title = styled.h1`
   font-size: 24px;
-  color: #FFFFFF;
+  color: #000000;
   position: absolute;
   top: 95px;
   left: 0;
@@ -23,7 +23,7 @@ const Title = styled.h1`
 const PageContainer = styled.div`
   width: 100%;
   min-height: 100vh;
-  background-color: #121212;
+  background-color: #F9F7FE;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -31,10 +31,10 @@ const PageContainer = styled.div`
 
 const ContentContainer = styled.div`
   position: absolute;
-  top: 159px; /* 95px (title top) + 24px (title height) + 40px (spacing) */
+  top: 159px;
   left: 0;
   right: 0;
-  bottom: 84px; /* Space for bottom tab bar */
+  bottom: 84px;
   display: flex;
   justify-content: center;
   padding: 0 20px;
@@ -46,40 +46,83 @@ const SettingsContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px; /* Space between buttons */
+  gap: 12px;
 `;
 
-const Button = styled.button`
-  background: #3049DF;
+const ButtonIcon = styled.span`
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  opacity: 0.7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+`;
+
+const SettingsButton = styled.button`
+  background: #6A4DFF;
   color: white;
   border: none;
-  padding: 16px 32px;
-  border-radius: 8px;
-  font-size: 18px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  font-size: 16px;
   cursor: pointer;
-  transition: all 0.2s ease;
   width: 100%;
-  max-width: 400px;
+  max-width: 380px;
+  display: flex;
+  align-items: center;
+  transition: background 0.2s ease;
+  box-shadow: 0 4px 8px rgba(106, 77, 255, 0.2);
   
   &:hover {
-    background: #2840CF;
-    transform: translateY(-1px);
+    background: #5A3DEF;
   }
 
   &:active {
-    transform: translateY(0);
+    background: #4A2DDF;
+  }
+
+  &::after {
+    content: "›";
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-left: auto;
   }
 `;
 
-const LogoutButton = styled(Button)`
+const LogoutButton = styled(SettingsButton)`
   background: transparent;
   border: 1px solid #FF4444;
   color: #FF4444;
+  justify-content: center;
+  margin-top: 20px;
+  box-shadow: none;
 
   &:hover {
     background: rgba(255, 68, 68, 0.1);
   }
+
+  &::after {
+    content: none;
+  }
 `;
+
+const PreferencesIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+  </svg>
+);
+
+const LogoutIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15m-3 0-3-3m0 0 3-3m-3 3h15.75" />
+  </svg>
+);
 
 const SettingsPage = () => {
   const navigate = useNavigate();
@@ -103,10 +146,16 @@ const SettingsPage = () => {
       <Title>Настройки</Title>
       <ContentContainer>
         <SettingsContainer>
-          <Button onClick={handleClick}>
+          <SettingsButton onClick={handleClick}>
+            <ButtonIcon>
+              <PreferencesIcon />
+            </ButtonIcon>
             Изменить предпочтения
-          </Button>
+          </SettingsButton>
           <LogoutButton onClick={handleLogout}>
+            <ButtonIcon>
+              <LogoutIcon />
+            </ButtonIcon>
             Выйти (для тест версии)
           </LogoutButton>
         </SettingsContainer>

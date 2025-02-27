@@ -1,11 +1,11 @@
 import React from 'react';
 import styled from 'styled-components';
-import { IoRefreshOutline, IoHomeOutline, IoCalendarOutline, IoSettingsOutline, IoBulbOutline } from 'react-icons/io5';
+import { UndoIcon, HomeIcon, CalendarIcon, SettingsIcon, IdeaIcon } from './Icons';
 
 interface TabItem {
   id: string;
-  icon: React.ReactNode;
-  label: string;
+  icon: (filled: boolean) => React.ReactNode;
+  ariaLabel: string;
 }
 
 interface BottomTabBarProps {
@@ -20,69 +20,71 @@ const TabBarContainer = styled.div`
   left: 0;
   right: 0;
   height: 64px;
-  background-color: #121212;
+  background-color: #F9F7FE;
   display: flex;
   justify-content: space-around;
   align-items: center;
   padding-bottom: env(safe-area-inset-bottom);
-  border-top: 1px solid #1f1f1f;
+  border-top: 1px solid #D8D0F0;
   z-index: 10;
+  box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.05);
 `;
 
 const TabButton = styled.button<{ $isActive: boolean }>`
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: transparent;
   border: none;
-  color: ${props => props.$isActive ? '#3049DF' : 'rgba(255, 255, 255, 0.8)'};
-  font-size: 10px;
-  width: 56px;
-  height: 54px;
+  color: ${props => props.$isActive ? '#6A4DFF' : 'rgba(0, 0, 0, 0.6)'};
+  width: 48px;
+  height: 48px;
   cursor: pointer;
   transition: color 0.2s ease;
+  /* Prevent default button behaviors */
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  user-select: none;
+  touch-action: manipulation;
 
   &:hover {
-    color: ${props => props.$isActive ? '#3049DF' : '#ffffff'};
+    color: ${props => props.$isActive ? '#6A4DFF' : '#000000'};
   }
-
-  svg {
-    font-size: 28px; /* Increased by additional 8% from 26px */
-    margin-bottom: 4px;
-  }
+  
+  /* Prevent double-tap zoom on iOS */
+  touch-action: manipulation;
 `;
 
 export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChange, onUndoClick }) => {
   const tabs: TabItem[] = [
     {
       id: 'undo',
-      icon: <IoRefreshOutline />,
-      label: 'Undo'
+      icon: () => <UndoIcon />,
+      ariaLabel: 'Отменить'
     },
     {
       id: 'idea',
-      icon: <IoBulbOutline />,
-      label: 'Идея'
+      icon: (filled) => <IdeaIcon filled={filled} />,
+      ariaLabel: 'Идея'
     },
     {
       id: 'cards',
-      icon: <IoHomeOutline />,
-      label: 'Главная'
+      icon: (filled) => <HomeIcon filled={filled} />,
+      ariaLabel: 'Главная'
     },
     {
       id: 'saved',
-      icon: <IoCalendarOutline />,
-      label: 'События'
+      icon: (filled) => <CalendarIcon filled={filled} />,
+      ariaLabel: 'События'
     },
     {
       id: 'settings',
-      icon: <IoSettingsOutline />,
-      label: 'Настройки'
+      icon: (filled) => <SettingsIcon filled={filled} />,
+      ariaLabel: 'Настройки'
     }
   ];
 
-  const handleTabClick = (tabId: string) => {
+  const handleTabClick = React.useCallback((tabId: string) => {
     if (tabId === 'undo' && onUndoClick) {
       onUndoClick();
       return;
@@ -97,7 +99,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
     if (tabId === 'idea') {
       console.log(`${tabId} feature is not implemented yet`);
     }
-  };
+  }, [onUndoClick, onTabChange]);
 
   return (
     <TabBarContainer>
@@ -106,9 +108,9 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
           key={tab.id}
           $isActive={activeTab === tab.id}
           onClick={() => handleTabClick(tab.id)}
-          aria-label={tab.label}
+          aria-label={tab.ariaLabel}
         >
-          {tab.icon}
+          {tab.icon(activeTab === tab.id)}
         </TabButton>
       ))}
     </TabBarContainer>

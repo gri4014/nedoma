@@ -24,10 +24,14 @@ const TabContainer = styled.div<{ $variant?: 'primary' | 'secondary' }>`
 const TabButton = styled.button<{ $isActive: boolean; $variant?: 'primary' | 'secondary' }>`
   background: ${({ $isActive, $variant }) => 
     $isActive 
-      ? ($variant === 'secondary' ? '#2E2E2E' : '#1E1E1E')
+      ? ($variant === 'secondary' ? '#E9E4FF' : '#6A4DFF')
       : 'transparent'
   };
-  color: ${({ $isActive }) => $isActive ? '#FFFFFF' : 'rgba(255, 255, 255, 0.7)'};
+  color: ${({ $isActive, $variant }) => 
+    $isActive 
+      ? ($variant === 'secondary' ? '#6A4DFF' : '#FFFFFF')
+      : 'rgba(0, 0, 0, 0.7)'
+  };
   border: none;
   padding: ${({ $variant }) => $variant === 'secondary' ? '8px 16px' : '12px 24px'};
   cursor: pointer;
@@ -36,12 +40,17 @@ const TabButton = styled.button<{ $isActive: boolean; $variant?: 'primary' | 'se
   border-radius: 8px;
   flex: 1;
   transition: all 0.2s ease;
+  box-shadow: ${({ $isActive, $variant }) => 
+    $isActive && $variant !== 'secondary' 
+      ? '0 2px 4px rgba(106, 77, 255, 0.2)'
+      : 'none'
+  };
 
   &:hover {
     background: ${({ $isActive, $variant }) => 
       $isActive 
-        ? ($variant === 'secondary' ? '#2E2E2E' : '#1E1E1E')
-        : 'rgba(255, 255, 255, 0.1)'
+        ? ($variant === 'secondary' ? '#E9E4FF' : '#6A4DFF')
+        : 'rgba(106, 77, 255, 0.1)'
     };
   }
 `;
