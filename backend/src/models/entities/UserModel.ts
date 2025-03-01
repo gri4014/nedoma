@@ -19,29 +19,34 @@ export class UserModel {
     logger.info('Attempting to create user', { telegram_id: telegramId });
     
     const query = `
-      INSERT INTO users (telegram_id)
-      VALUES ($1)
-      RETURNING *
+      WITH inserted_user AS (
+        INSERT INTO users (telegram_id)
+        VALUES ($1::BIGINT)
+        RETURNING id, telegram_id, created_at, updated_at
+      )
+      SELECT 
+        id::text,
+        telegram_id::text,
+        created_at,
+        updated_at
+      FROM inserted_user;
     `;
 
     try {
       const result: QueryResult<User> = await db.query(query, [telegramId]);
-      const user = {
-        ...result.rows[0],
-        telegram_id: result.rows[0].telegram_id.toString()
-      };
+      const user = result.rows[0];
       
       logger.info('Successfully created user', { 
         user_id: user.id,
-        telegram_id: user.telegram_id,
-        created_at: user.created_at
+        telegram_id: user.telegram_id 
       });
       
       return user;
     } catch (error) {
       logger.error('Failed to create user', {
         telegram_id: telegramId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
     }
@@ -49,10 +54,15 @@ export class UserModel {
 
   static async getUserByTelegramId(telegramId: string): Promise<User | null> {
     logger.info('Looking up user by Telegram ID', { telegram_id: telegramId });
+    
     const query = `
-      SELECT *
+      SELECT 
+        id::text,
+        telegram_id::text,
+        created_at,
+        updated_at
       FROM users
-      WHERE telegram_id = $1
+      WHERE telegram_id = $1::BIGINT;
     `;
 
     try {
@@ -63,11 +73,7 @@ export class UserModel {
         return null;
       }
       
-      const user = {
-        ...result.rows[0],
-        telegram_id: result.rows[0].telegram_id.toString()
-      };
-      
+      const user = result.rows[0];
       logger.info('Found user by Telegram ID', { 
         user_id: user.id,
         telegram_id: user.telegram_id
@@ -77,7 +83,8 @@ export class UserModel {
     } catch (error) {
       logger.error('Error looking up user by Telegram ID', {
         telegram_id: telegramId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
     }
@@ -100,16 +107,15 @@ export class UserModel {
 
     try {
       // Delete existing preferences
-      logger.info('Deleting existing category preferences', { userId });
       await db.query(
-        'DELETE FROM user_category_preferences WHERE user_id = $1',
+        'DELETE FROM user_category_preferences WHERE user_id = $1::UUID',
         [userId]
       );
 
-      // Insert new preferences
+      // Insert new preferences if any exist
       if (preferences.length > 0) {
         const values = preferences.map((pref, idx) => 
-          `($1, $${idx * 2 + 2}, $${idx * 2 + 3})`
+          `($1::UUID, $${idx * 2 + 2}::UUID, $${idx * 2 + 3}::INTEGER)`
         ).join(',');
 
         const flatParams = preferences.reduce<Array<string | number>>((acc, pref) => 
@@ -121,31 +127,20 @@ export class UserModel {
           INSERT INTO user_category_preferences 
           (user_id, subcategory_id, level)
           VALUES ${values}
-          RETURNING id, user_id, subcategory_id, level
+          RETURNING id, user_id, subcategory_id, level;
         `;
 
         logger.debug('Executing category preferences insert', {
           query,
           userId,
-          paramCount: flatParams.length,
-          paramTypes: flatParams.map(p => typeof p)
+          paramCount: flatParams.length
         });
 
-        try {
-          const result = await db.query(query, flatParams);
-          logger.info('Successfully inserted category preferences', {
-            userId,
-            insertedCount: result.rowCount,
-            preferences: result.rows
-          });
-        } catch (error) {
-          logger.error('Failed to insert category preferences', {
-            userId,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            errorStack: error instanceof Error ? error.stack : undefined
-          });
-          throw error;
-        }
+        const result = await db.query(query, flatParams);
+        logger.info('Successfully inserted category preferences', {
+          userId,
+          insertedCount: result.rowCount
+        });
       }
 
       await db.query('COMMIT');
@@ -157,22 +152,22 @@ export class UserModel {
       logger.error('Category preferences transaction failed', {
         userId,
         error: error instanceof Error ? error.message : 'Unknown error',
-        errorStack: error instanceof Error ? error.stack : undefined
+        stack: error instanceof Error ? error.stack : undefined
       });
       await db.query('ROLLBACK');
       throw error;
     }
   }
 
-  static async getUserCategoryPreferences(
-    userId: string // UUID
-  ): Promise<CategoryPreference[]> {
+  static async getUserCategoryPreferences(userId: string): Promise<CategoryPreference[]> {
     logger.info('Getting user category preferences', { userId });
 
     const query = `
-      SELECT subcategory_id as "subcategoryId", level
+      SELECT 
+        subcategory_id::text as "subcategoryId",
+        level
       FROM user_category_preferences
-      WHERE user_id = $1
+      WHERE user_id = $1::UUID;
     `;
 
     try {
@@ -185,7 +180,8 @@ export class UserModel {
     } catch (error) {
       logger.error('Failed to get user category preferences', {
         userId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
       });
       throw error;
     }

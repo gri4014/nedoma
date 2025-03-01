@@ -193,6 +193,12 @@ export class CategoryModel extends BaseModel<ICategory> {
   async getCategoryHierarchy(): Promise<DbResponse<Array<ICategory & { children: ICategory[] }>>> {
     try {
       const query = `
+        WITH active_subcategories AS (
+          SELECT s.*
+          FROM subcategories s
+          JOIN categories c ON s.category_id = c.id
+          WHERE c.is_active = true
+        )
         SELECT 
           c.id,
           c.name,
@@ -205,13 +211,12 @@ export class CategoryModel extends BaseModel<ICategory> {
               'id', s.id,
               'name', s.name,
               'display_order', s.display_order,
-              'is_active', s.is_active,
               'created_at', s.created_at,
               'updated_at', s.updated_at
             )
           ) FILTER (WHERE s.id IS NOT NULL) as children
         FROM categories c
-        LEFT JOIN subcategories s ON s.category_id = c.id AND s.is_active = true
+        LEFT JOIN active_subcategories s ON s.category_id = c.id
         WHERE c.is_active = true
         GROUP BY c.id, c.name, c.display_order, c.is_active, c.created_at, c.updated_at
         ORDER BY c.display_order;

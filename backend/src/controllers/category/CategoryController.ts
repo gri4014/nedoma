@@ -2,46 +2,95 @@ import { Response } from 'express';
 import { AuthenticatedRequest } from '../../types/auth';
 import { CategoryModel } from '../../models/entities/CategoryModel';
 import { logger } from '../../utils/logger';
+import { Category, CategoryTree, SubcategoryData, CategoryData } from '../../types/category';
 
 export class CategoryController {
-  /**
-   * Get all subcategories (categories with parent_id)
-   */
-  getSubcategories = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const query = `
-        SELECT s.id, s.name
-        FROM subcategories s
-        WHERE s.is_active = true 
-        ORDER BY s.display_order;
-      `;
+  private categoryModel: CategoryModel;
 
-      // Explicitly type the response for clarity
-      interface Subcategory {
-        id: string;
-        name: string;
+  constructor() {
+    this.categoryModel = new CategoryModel();
+  }
+
+  /**
+   * Get all categories with subcategories (hierarchy)
+   */
+  getCategories = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+    try {
+      const result = await this.categoryModel.findAll({ is_active: true });
+
+      if (!result.success || !result.data) {
+        res.status(400).json(result);
+        return;
       }
 
-      const result = await this.categoryModel.db.query(query);
-
-      res.json({
-        success: true,
-        data: result.rows
+      // Map parent categories and their subcategories
+      const categoryMap = new Map<string, CategoryTree>();
+      result.data.forEach(category => {
+        if (!category.parent_id) {
+          categoryMap.set(category.id, {
+            ...category,
+            children: []
+          });
+        }
       });
+
+      result.data.forEach(category => {
+        if (category.parent_id && categoryMap.has(category.parent_id)) {
+          const parent = categoryMap.get(category.parent_id);
+          if (parent && parent.children) {
+            parent.children.push(category);
+          }
+        }
+      });
+
+      // Convert map to array and filter out categories without subcategories
+      const categories = Array.from(categoryMap.values())
+        .filter(category => category.children && category.children.length > 0);
+
+      // Sort subcategories by display_order
+      categories.forEach(category => {
+        if (category.children) {
+          category.children.sort((a: Category, b: Category) => 
+            ((a.display_order ?? 0) - (b.display_order ?? 0))
+          );
+        }
+      });
+      
+      // Sort categories by display_order
+      categories.sort((a: CategoryTree, b: CategoryTree) => 
+        ((a.display_order ?? 0) - (b.display_order ?? 0))
+      );
+
+      // Format the response for the bubbles visualization
+      const formattedData: CategoryData[] = categories.map(category => ({
+        id: category.id,
+        name: category.name,
+        children: category.children?.map(subcategory => ({
+          id: subcategory.id,
+          name: subcategory.name,
+          categoryName: category.name,
+          display_order: subcategory.display_order
+        })) || []
+      }));
+
+      // Disable caching for this endpoint
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }).json({
+        success: true,
+        data: formattedData
+      });
+
     } catch (error) {
-      logger.error('Error in getSubcategories:', error);
+      logger.error('Error in getCategories:', error);
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Internal server error'
       });
     }
   };
-
-  private categoryModel: CategoryModel;
-
-  constructor() {
-    this.categoryModel = new CategoryModel();
-  }
 
   /**
    * Create a new category
@@ -63,33 +112,6 @@ export class CategoryController {
       res.status(201).json(result);
     } catch (error) {
       logger.error('Error in createCategory:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
-    }
-  };
-
-  /**
-   * Get all categories
-   */
-  getCategories = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const result = await this.categoryModel.findAll({ is_active: true });
-
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
-
-      // Disable caching for this endpoint
-      res.set({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }).json(result);
-    } catch (error) {
-      logger.error('Error in getCategories:', error);
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Internal server error'

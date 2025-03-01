@@ -7,9 +7,12 @@ services:
     environment:
       POSTGRES_DB: nedoma_copy
       POSTGRES_USER: grigorii
-      POSTGRES_PASSWORD: your_password
+      POSTGRES_PASSWORD: your-password
     volumes:
       - ./docker/postgres-data:/var/lib/postgresql/data
+      - ./docker/pg_hba.conf:/var/lib/postgresql/data/pg_hba.conf
+      - ./docker/postgresql.conf:/var/lib/postgresql/data/postgresql.conf
+    command: ["postgres", "-c", "config_file=/var/lib/postgresql/data/postgresql.conf"]
     ports:
       - "5432:5432"
 

@@ -1,3 +1,33 @@
+// Global variables
+let canvas = null;
+let ctx = null;
+const bubbles = [];
+
+// Configuration
+const config = {
+  colors: {
+    'Спорт': 'hsl(200, 70%, 45%)',
+    'Культура': 'hsl(0, 70%, 50%)',
+    'Развлечения': 'hsl(280, 60%, 45%)',
+    'default': 'hsl(200, 70%, 45%)'
+  },
+  sizes: {
+    0: 40,  // Default/unselected
+    1: 60,  // First level
+    2: 80   // Second level
+  },
+  physics: {
+    centeringForce: 0.00005,
+    friction: 0.995,
+    maxVelocity: 2,
+    collisionElasticity: 0.95,
+    initialVelocityRange: 3
+  }
+};
+
+let canvasInitialized = false;
+let bubblesInitialized = false;
+
 class Bubble {
    constructor(x, y, subcategory, categoryColor) {
        this.x = x;
@@ -8,17 +38,12 @@ class Bubble {
        this.sizeState = 0;
        this.targetSize = this.getSizeForState(0);
        this.currentSize = this.targetSize;
-       this.dx = (Math.random() - 0.5) * 3; // Increased initial velocity for better spread
-       this.dy = (Math.random() - 0.5) * 3;
+       this.dx = (Math.random() - 0.5) * config.physics.initialVelocityRange;
+       this.dy = (Math.random() - 0.5) * config.physics.initialVelocityRange;
    }
 
    getSizeForState(state) {
-       const sizes = {
-           0: 40, // Initial size
-           1: 60, // Medium size
-           2: 80  // Large size
-       };
-       return sizes[state];
+       return config.sizes[state];
    }
 
    update(canvas) {
@@ -28,19 +53,17 @@ class Bubble {
        const towardsCenterY = centerY - this.y;
        const distanceToCenter = Math.sqrt(towardsCenterX * towardsCenterX + towardsCenterY * towardsCenterY);
       
-       const centeringForce = 0.00005; // Reduced centering force
        if (distanceToCenter > 0) {
-           this.dx += (towardsCenterX / distanceToCenter) * centeringForce * distanceToCenter;
-           this.dy += (towardsCenterY / distanceToCenter) * centeringForce * distanceToCenter;
+           this.dx += (towardsCenterX / distanceToCenter) * config.physics.centeringForce * distanceToCenter;
+           this.dy += (towardsCenterY / distanceToCenter) * config.physics.centeringForce * distanceToCenter;
        }
 
-       this.dx *= 0.995; // Reduced damping for longer momentum
-       this.dy *= 0.995;
+       this.dx *= config.physics.friction;
+       this.dy *= config.physics.friction;
 
-       const maxVelocity = 2;
        const currentVelocity = Math.sqrt(this.dx * this.dx + this.dy * this.dy);
-       if (currentVelocity > maxVelocity) {
-           const scale = maxVelocity / currentVelocity;
+       if (currentVelocity > config.physics.maxVelocity) {
+           const scale = config.physics.maxVelocity / currentVelocity;
            this.dx *= scale;
            this.dy *= scale;
        }
@@ -72,7 +95,6 @@ class Bubble {
            this.sizeState = (this.sizeState + 1) % 3;
            this.targetSize = this.getSizeForState(this.sizeState);
           
-           // Notify parent React app about the change
            window.parent.postMessage({
                type: 'preferenceChange',
                subcategoryId: this.id,
@@ -85,6 +107,8 @@ class Bubble {
    }
 
    draw(ctx) {
+       if (!ctx) return;
+       
        ctx.save();
       
        const gradient = ctx.createRadialGradient(
@@ -114,14 +138,13 @@ class Bubble {
 
        const maxWidth = this.currentSize * 1.5;
        ctx.fillStyle = '#fff';
-       ctx.font = '18px "Gill Sans", "Gill Sans MT", Helvetica, Arial, sans-serif';
+       ctx.font = '16px "Gill Sans", "Gill Sans MT", Helvetica, Arial, sans-serif';
        ctx.textAlign = 'center';
        ctx.textBaseline = 'middle';
        
        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
        ctx.shadowBlur = 2;
 
-       // Word wrapping logic
        const words = this.name.split(' ');
        let lines = [];
        let currentLine = words[0];
@@ -139,8 +162,7 @@ class Bubble {
        }
        lines.push(currentLine);
 
-       // Draw each line
-       const lineHeight = 20;
+       const lineHeight = 18;
        const totalHeight = lineHeight * (lines.length - 1);
        const startY = this.y - totalHeight / 2;
 
@@ -163,88 +185,65 @@ class Bubble {
    }
 }
 
-// Canvas setup
-const canvas = document.getElementById('bubbleCanvas');
-const ctx = canvas.getContext('2d', { alpha: false });
-const bubbles = [];
-let isInitialized = false;
+function initializeCanvas() {
+   if (canvasInitialized) return;
+   
+   console.log('Initializing canvas');
+   canvas = document.getElementById('bubbleCanvas');
+   if (!canvas) {
+       console.error('Canvas element not found');
+       return;
+   }
+   
+   ctx = canvas.getContext('2d', { alpha: false });
+   if (!ctx) {
+       console.error('Could not get canvas context');
+       return;
+   }
 
-// Set canvas size with high DPI support
+   resizeCanvas();
+   window.addEventListener('resize', resizeCanvas);
+   
+   canvas.addEventListener('click', (event) => {
+       const rect = canvas.getBoundingClientRect();
+       const dpr = window.devicePixelRatio || 1;
+       const x = (event.clientX - rect.left);
+       const y = (event.clientY - rect.top);
+
+       for (const bubble of bubbles) {
+           if (bubble.handleClick(x, y)) {
+               break;
+           }
+       }
+   });
+
+   canvasInitialized = true;
+   animate();
+   console.log('Canvas initialized successfully');
+}
+
 function resizeCanvas() {
+   if (!canvas || !ctx) return;
+   
    const dpr = window.devicePixelRatio || 1;
-   canvas.style.width = window.innerWidth + 'px';
-   canvas.style.height = window.innerHeight + 'px';
-   canvas.width = window.innerWidth * dpr;
-   canvas.height = window.innerHeight * dpr;
+   const displayWidth = window.innerWidth;
+   const displayHeight = window.innerHeight;
+
+   canvas.style.width = `${displayWidth}px`;
+   canvas.style.height = `${displayHeight}px`;
+   
+   canvas.width = displayWidth * dpr;
+   canvas.height = displayHeight * dpr;
+
    ctx.scale(dpr, dpr);
    ctx.textRendering = 'optimizeLegibility';
    ctx.imageSmoothingEnabled = true;
    ctx.imageSmoothingQuality = 'high';
 }
 
-// Define specific colors for each category
-const categoryColors = {
-   'Спорт': 'hsl(200, 70%, 45%)',      // Blue
-   'Культура': 'hsl(0, 70%, 50%)',      // Red
-   'Развлечения': 'hsl(280, 60%, 45%)'  // Purple
-};
-
-const fallbackColor = 'hsl(200, 70%, 45%)'; // Default blue
-
-function initializeBubbles(categories) {
-   console.log('Initializing bubbles with categories:', categories);
-   if (!categories || !Array.isArray(categories) || isInitialized) {
-       console.error('Invalid categories data or already initialized:', categories);
-       return;
-   }
-
-   bubbles.length = 0; // Clear existing bubbles
-   const centerX = window.innerWidth / 2;
-   const centerY = window.innerHeight / 2;
-   const clusterRadius = 20; // Reduced initial cluster radius
-
-   categories.forEach((category) => {
-       const categoryColor = categoryColors[category.name] || fallbackColor;
-       category.subcategories.forEach(subcategory => {
-           // Random position within a small circle around the center
-           const angle = Math.random() * Math.PI * 2;
-           const distance = Math.random() * clusterRadius;
-           const x = centerX + Math.cos(angle) * distance;
-           const y = centerY + Math.sin(angle) * distance;
-          
-           bubbles.push(new Bubble(x, y, subcategory, categoryColor));
-       });
-   });
-
-   isInitialized = true;
-}
-
-// Handle messages from parent React app
-window.addEventListener('message', (event) => {
-   console.log('Received message:', event.data);
-   if (event.data.type === 'setCategories' && !isInitialized) {
-       initializeBubbles(event.data.categories);
-   }
-});
-
-// Log when the script loads
-console.log('Bubbles script loaded and waiting for categories data');
-
-// Handle clicks
-canvas.addEventListener('click', (event) => {
-   const rect = canvas.getBoundingClientRect();
-   const x = event.clientX - rect.left;
-   const y = event.clientY - rect.top;
-
-   for (const bubble of bubbles) {
-       if (bubble.handleClick(x, y)) {
-           break;
-       }
-   }
-});
-
-// Animation loop
 function animate() {
+   if (!canvas || !ctx) return;
+   
    ctx.fillStyle = '#F9F7FE';
    ctx.fillRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
 
@@ -253,7 +252,11 @@ function animate() {
        bubble.draw(ctx);
    });
 
-   // Collision detection and response
+   handleCollisions();
+   requestAnimationFrame(animate);
+}
+
+function handleCollisions() {
    for (let i = 0; i < bubbles.length; i++) {
        for (let j = i + 1; j < bubbles.length; j++) {
            const b1 = bubbles[i];
@@ -277,19 +280,65 @@ function animate() {
 
                const normalX = dx / distance;
                const normalY = dy / distance;
-               const p = 1.2 * (b1.dx * normalX + b1.dy * normalY);
+               const p = 2.0 * (b1.dx * normalX + b1.dy * normalY);
               
-               b1.dx = (b1.dx - normalX * p) * 0.95;
-               b1.dy = (b1.dy - normalY * p) * 0.95;
-               b2.dx = (b2.dx + normalX * p) * 0.95;
-               b2.dy = (b2.dy + normalY * p) * 0.95;
+               b1.dx = (b1.dx - normalX * p) * config.physics.collisionElasticity;
+               b1.dy = (b1.dy - normalY * p) * config.physics.collisionElasticity;
+               b2.dx = (b2.dx + normalX * p) * config.physics.collisionElasticity;
+               b2.dy = (b2.dy + normalY * p) * config.physics.collisionElasticity;
            }
        }
    }
-
-   requestAnimationFrame(animate);
 }
 
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-animate();
+function initializeBubbles(categories) {
+   console.log('Attempting to initialize bubbles with categories:', categories);
+   
+   if (!canvasInitialized) {
+       console.error('Canvas not initialized yet');
+       return;
+   }
+   
+   if (!categories || !Array.isArray(categories)) {
+       console.error('Invalid categories data:', categories);
+       return;
+   }
+
+   bubbles.length = 0;
+   const centerX = canvas.width / (2 * window.devicePixelRatio);
+   const centerY = canvas.height / (2 * window.devicePixelRatio);
+   const clusterRadius = Math.min(centerX, centerY) * 0.3;
+
+   categories.forEach(category => {
+       if (!category.children || !Array.isArray(category.children)) return;
+       
+       category.children.forEach(subcategory => {
+           const categoryColor = config.colors[subcategory.categoryName] || config.colors.default;
+
+           const angle = Math.random() * Math.PI * 2;
+           const distance = Math.random() * clusterRadius;
+           const x = centerX + Math.cos(angle) * distance;
+           const y = centerY + Math.sin(angle) * distance;
+           
+           bubbles.push(new Bubble(x, y, subcategory, categoryColor));
+       });
+   });
+
+   bubblesInitialized = true;
+   console.log('Bubbles initialized successfully:', bubbles.length);
+}
+
+window.addEventListener('message', (event) => {
+   console.log('Received message:', event.data);
+   if (event.data.type === 'setCategories') {
+       if (!canvasInitialized) {
+           console.warn('Received categories before canvas initialization');
+       }
+       initializeBubbles(event.data.categories);
+   }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+   console.log('DOMContentLoaded, initializing canvas');
+   initializeCanvas();
+});

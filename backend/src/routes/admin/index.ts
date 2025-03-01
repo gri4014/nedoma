@@ -6,7 +6,7 @@ import { AuthenticatedAdminRequest } from '../../types/auth';
 import { adminAuthController } from '../../controllers/auth/AdminAuthController';
 import { categoryController } from '../../controllers/category/CategoryController';
 import { tagController } from '../../controllers/tag/TagController';
-import { eventController, EventController } from '../../controllers/event/EventController';
+import { eventController } from '../../controllers/event/EventController';
 import { imageController } from '../../controllers/image/ImageController';
 import { authenticateAdmin } from '../../middleware/auth';
 import { imageUpload } from '../../middleware/imageUpload';
@@ -34,7 +34,6 @@ router.post('/login',
 // Category routes (read-only, public)
 router.get('/categories', handleRequest((req, res) => categoryController.getCategories(req, res)));
 router.get('/categories/hierarchy', handleRequest((req, res) => categoryController.getCategoryHierarchy(req, res)));
-router.get('/categories/subcategories', handleRequest((req, res) => categoryController.getSubcategories(req, res)));
 
 // Protected routes
 router.use(...(authenticateAdmin as RequestHandler[]));

@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import api from '../services/api';
+import { CategoryResponse } from '../types/category';
 
 const LoadingOverlay = styled.div`
   position: fixed;
@@ -87,60 +88,107 @@ const BubblesPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingCategories, setIsFetchingCategories] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [validSubcategoryIds, setValidSubcategoryIds] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+  const apiRef = useRef(api);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
-    const fetchCategories = async () => {
+    apiRef.current = api;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const fetchCategories = useCallback(async (signal: AbortSignal) => {
+    try {
       setError(null);
-      setIsFetchingCategories(true);
-      try {
-        const response = await api.get('/admin/categories/hierarchy');
-        const categoriesWithSubcategories = response.data.data.map((category: any) => ({
-          id: category.id,
-          name: category.name,
-          subcategories: category.children.map((child: any) => ({
-            id: child.id,
-            name: child.name
-          }))
-        }));
-        
-        const iframe = document.getElementById('bubbleFrame') as HTMLIFrameElement;
-        if (iframe?.contentWindow) {
-          iframe.contentWindow.postMessage({
-            type: 'setCategories',
-            categories: categoriesWithSubcategories
-          }, '*');
+      console.log('[BubblesPage] Fetching categories...');
+      
+      const response = await apiRef.current.get<CategoryResponse>('/admin/categories', { signal });
+
+      if (!mountedRef.current || signal.aborted) return;
+      
+      console.log('[BubblesPage] Received response:', response);
+
+      if (!response.data.success) {
+        throw new Error('Failed to fetch categories');
+      }
+
+      // Collect all valid subcategory IDs
+      const validIds = new Set<string>();
+      response.data.data.forEach(category => {
+        if (category.children) {
+          category.children.forEach(subcategory => {
+            validIds.add(subcategory.id);
+          });
         }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-        setError('Ошибка загрузки категорий. Пожалуйста, обновите страницу или попробуйте позже.');
-      } finally {
+      });
+
+      setValidSubcategoryIds(validIds);
+      
+      console.log('[BubblesPage] Valid subcategory IDs:', validIds);
+
+      // Send to iframe
+      const iframe = document.getElementById('bubbleFrame') as HTMLIFrameElement;
+      if (iframe?.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'setCategories',
+          categories: response.data.data
+        }, '*');
+        console.log('[BubblesPage] Sent categories to iframe');
+      }
+    } catch (err) {
+      if (!mountedRef.current || signal.aborted) return;
+      
+      const error = err as Error;
+      console.error('[BubblesPage] Error fetching categories:', error);
+      setError('Ошибка загрузки категорий. Пожалуйста, обновите страницу или попробуйте позже.');
+    } finally {
+      if (mountedRef.current && !signal.aborted) {
         setIsFetchingCategories(false);
       }
-    };
-
-    fetchCategories();
+    }
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setIsFetchingCategories(true);
+    fetchCategories(controller.signal).catch(err => {
+      if (!controller.signal.aborted) {
+        console.error('[BubblesPage] Error in fetch effect:', err);
+      }
+    });
+    return () => {
+      controller.abort();
+    };
+  }, [fetchCategories]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       if (event.data.type === 'preferenceChange') {
         const { subcategoryId, level } = event.data;
+        console.log('[BubblesPage] Received preference change:', { subcategoryId, level });
+        
+        if (!validSubcategoryIds.has(subcategoryId)) {
+          console.warn('[BubblesPage] Invalid subcategory ID received:', subcategoryId);
+          return;
+        }
+
+        setError(null);
         setPreferences(prev => {
-          const existing = prev.find(p => p.subcategoryId === subcategoryId);
-          if (existing) {
-            return prev.map(p => 
-              p.subcategoryId === subcategoryId ? { ...p, level } : p
-            );
+          const filteredPrefs = prev.filter(p => p.subcategoryId !== subcategoryId);
+          if (level > 0) {
+            return [...filteredPrefs, { subcategoryId, level }];
           }
-          return [...prev, { subcategoryId, level }];
+          return filteredPrefs;
         });
       }
     };
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [validSubcategoryIds]);
 
   const location = useLocation();
   const fromSettings = location.state?.fromSettings;
@@ -153,8 +201,9 @@ const BubblesPage = () => {
     setError(null);
 
     try {
-      // Filter out zero-level preferences
-      const nonZeroPreferences = preferences.filter(p => p.level > 0);
+      const nonZeroPreferences = preferences
+        .filter(p => p.level > 0)
+        .filter(p => validSubcategoryIds.has(p.subcategoryId));
       
       if (nonZeroPreferences.length === 0) {
         setError('Пожалуйста, выберите хотя бы одну категорию.');
@@ -164,26 +213,34 @@ const BubblesPage = () => {
 
       const preferencesToSend = nonZeroPreferences.map(p => ({
         subcategoryId: p.subcategoryId,
-        level: parseInt(p.level.toString(), 10) // Ensure level is a number
+        level: p.level
       }));
 
-      console.log('Sending preferences:', preferencesToSend);
+      console.log('[BubblesPage] Sending preferences:', preferencesToSend);
 
-      await api.post('/user/preferences/categories', { preferences: preferencesToSend });
+      const response = await api.post('/user/preferences/categories', { preferences: preferencesToSend });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.error || 'Failed to save preferences');
+      }
+
       navigate('/tags', { state: { fromSettings, returnTab } });
     } catch (error: any) {
-      console.error('Error saving preferences:', error);
-      
-      // Handle the new validation error format
+      console.error('[BubblesPage] Error saving preferences:', error);
+      console.log('[BubblesPage] Full error response:', error.response?.data);
+
       if (error.response?.data?.error === 'Invalid subcategories') {
-        setError('Некоторые категории стали недоступны. Пожалуйста, обновите страницу и попробуйте снова.');
-        // Re-fetch categories to ensure we have the latest data
-        window.location.reload();
+        const invalidIds = error.response.data.invalidIds || [];
+        setError(`Некоторые подкатегории недействительны (${invalidIds.join(', ')}). Попробуйте снова.`);
+        
+        setPreferences(prev => prev.filter(p => !invalidIds.includes(p.subcategoryId)));
       } else {
         setError('Ошибка сохранения предпочтений. Пожалуйста, попробуйте позже.');
       }
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

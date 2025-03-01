@@ -28,10 +28,10 @@ const handleRequest = (
   };
 };
 
-// Get subcategories
+// Get categories with subcategories
 router.get(
   '/subcategories',
-  handleRequest((req, res) => categoryController.getSubcategories(req as AuthenticatedUserRequest, res))
+  handleRequest((req, res) => categoryController.getCategories(req as AuthenticatedUserRequest, res))
 );
 
 // User creation

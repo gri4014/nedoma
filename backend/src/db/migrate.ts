@@ -2,9 +2,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import dotenv from 'dotenv';
-import pool from '../config/database';
 
+// Load environment variables first
 dotenv.config();
+
+import pool from '../config/database';
 
 const runMigrations = async () => {
   const client = await pool.connect();
