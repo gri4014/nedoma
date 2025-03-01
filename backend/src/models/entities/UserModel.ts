@@ -9,6 +9,7 @@ interface User {
   updated_at: Date;
 }
 
+
 interface CategoryPreference {
   subcategoryId: string;
   level: number;
