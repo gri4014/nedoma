@@ -199,9 +199,24 @@ function initializeBubbles(categories) {
    }
 
    bubbles.length = 0; // Clear existing bubbles
+   
+   // Ensure canvas is properly sized
+   resizeCanvas();
+   
    const centerX = window.innerWidth / 2;
    const centerY = window.innerHeight / 2;
    const clusterRadius = 20; // Reduced initial cluster radius
+   
+   console.log('Canvas dimensions:', {
+       width: canvas.width,
+       height: canvas.height,
+       styleWidth: canvas.style.width,
+       styleHeight: canvas.style.height,
+       centerX,
+       centerY,
+       windowWidth: window.innerWidth,
+       windowHeight: window.innerHeight
+   });
 
    categories.forEach((category) => {
        const categoryColor = categoryColors[category.name] || fallbackColor;

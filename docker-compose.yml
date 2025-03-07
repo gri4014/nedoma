@@ -6,8 +6,8 @@ services:
     container_name: nedoma_db
     environment:
       POSTGRES_DB: nedoma_copy
-      POSTGRES_USER: grigorii
-      POSTGRES_PASSWORD: your_password
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     volumes:
       - ./docker/postgres-data:/var/lib/postgresql/data
     ports:

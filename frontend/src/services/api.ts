@@ -15,6 +15,15 @@ interface Admin {
   last_login: string | null;
 }
 
+// Create public instance (no auth handling)
+const publicApi = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
+
+// Create authenticated instance (with auth handling)
 const api = axios.create({
   baseURL: '/api',
   headers: {
@@ -228,4 +237,13 @@ const dashboardApi = {
   getSystemHealth: () => api.get('/system/health')
 };
 
-export { api as default, authApi, dashboardApi, eventApi, userEventApi, categoryApi, tagApi };
+export { 
+  api as default, 
+  publicApi,
+  authApi, 
+  dashboardApi, 
+  eventApi, 
+  userEventApi, 
+  categoryApi, 
+  tagApi 
+};

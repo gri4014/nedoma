@@ -157,12 +157,12 @@ const TagSelectionPage = () => {
         const preferences = prefsResponse.data as CategoryPreference[];
         
         // Get all tags
-        const tagsResponse = await api.get('/admin/tags');
+        const tagsResponse = await api.get('/tags');
         const tagsData = tagsResponse.data as TagResponse;
         const allTags = tagsData.data;
 
         // Get all subcategories
-        const categoriesResponse = await api.get('/admin/categories');
+        const categoriesResponse = await api.get('/categories/hierarchy');
         const categoriesData = categoriesResponse.data as CategoryResponse;
 
         // Type checking for API responses

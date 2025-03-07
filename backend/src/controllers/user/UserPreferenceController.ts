@@ -31,9 +31,9 @@ class UserPreferenceController {
     try {
       const subcategoryIds = preferences.map(p => p.subcategoryId);
       const result = await db.query(
-        `SELECT id FROM subcategories 
+        `SELECT id FROM categories 
          WHERE id = ANY($1) 
-         AND is_active = true`,
+         AND parent_id IS NOT NULL`,
         [subcategoryIds]
       );
 

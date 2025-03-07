@@ -102,7 +102,7 @@ const TagForm: React.FC<TagFormProps> = ({ initialData, onSubmit, onCancel }) =>
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const response = await api.get<{ data: CategoryTree[] }>('/admin/categories');
+        const response = await api.get<{ data: CategoryTree[] }>('/admin/categories/hierarchy/all');
         if (response.data) {
           setCategories(response.data);
         }

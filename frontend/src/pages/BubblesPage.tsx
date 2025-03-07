@@ -1,7 +1,36 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
-import api from '../services/api';
+import api, { publicApi } from '../services/api';
+
+interface Category {
+  id: string;
+  name: string;
+  subcategories: {
+    id: string;
+    name: string;
+  }[];
+}
+
+interface CategoryResponse {
+  success: boolean;
+  data: {
+    id: string;
+    name: string;
+    children: {
+      id: string;
+      name: string;
+      parent_id: string;
+      display_order: number;
+    }[];
+  }[];
+  error?: string;
+}
+
+interface Preference {
+  subcategoryId: string;
+  level: number;
+}
 
 const LoadingOverlay = styled.div`
   position: fixed;
@@ -77,11 +106,6 @@ const ContinueButton = styled.button`
   }
 `;
 
-interface Preference {
-  subcategoryId: string;
-  level: number;
-}
-
 const BubblesPage = () => {
   const [preferences, setPreferences] = useState<Preference[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -94,23 +118,69 @@ const BubblesPage = () => {
       setError(null);
       setIsFetchingCategories(true);
       try {
-        const response = await api.get('/admin/categories/hierarchy');
-        const categoriesWithSubcategories = response.data.data.map((category: any) => ({
-          id: category.id,
-          name: category.name,
-          subcategories: category.children.map((child: any) => ({
-            id: child.id,
-            name: child.name
-          }))
-        }));
-        
-        const iframe = document.getElementById('bubbleFrame') as HTMLIFrameElement;
-        if (iframe?.contentWindow) {
-          iframe.contentWindow.postMessage({
-            type: 'setCategories',
-            categories: categoriesWithSubcategories
-          }, '*');
+        console.log('Fetching category hierarchy...');
+        const response = await publicApi.get<CategoryResponse>('/categories/hierarchy');
+        console.log('Raw response:', response.data);
+
+        if (!response.data.success) {
+          console.error('Server returned error:', response.data);
+          setError('Ошибка загрузки категорий. Пожалуйста, обновите страницу или попробуйте позже.');
+          return;
         }
+
+        if (!response.data.data || !Array.isArray(response.data.data)) {
+          console.error('Invalid data format:', response.data);
+          setError('Ошибка в формате данных. Пожалуйста, обратитесь к администратору.');
+          return;
+        }
+
+        // Transform the data to match the bubbles visualization format
+        const categoriesWithSubcategories = response.data.data.map((category): Category | null => {
+          if (!category.id || !category.name || !Array.isArray(category.children)) {
+            console.error('Invalid category format:', category);
+            return null;
+          }
+          return {
+            id: category.id,
+            name: category.name,
+            subcategories: category.children
+              .filter((child): child is NonNullable<typeof child> => 
+                Boolean(child && child.id && child.name)
+              )
+              .map(child => ({
+                id: child.id,
+                name: child.name
+              }))
+          };
+        }).filter((cat): cat is Category => cat !== null);
+
+        console.log('Transformed categories:', categoriesWithSubcategories);
+
+        if (categoriesWithSubcategories.length === 0) {
+          setError('Нет доступных категорий. Пожалуйста, обратитесь к администратору.');
+          return;
+        }
+
+        const iframe = document.getElementById('bubbleFrame') as HTMLIFrameElement;
+        const sendCategories = () => {
+          if (iframe?.contentWindow) {
+            iframe.contentWindow.postMessage({
+              type: 'setCategories',
+              categories: categoriesWithSubcategories
+            }, '*');
+          }
+        };
+
+        // If iframe is already loaded, send categories immediately
+        if (iframe?.contentDocument?.readyState === 'complete') {
+          sendCategories();
+        } else {
+          // Otherwise wait for it to load
+          iframe?.addEventListener('load', sendCategories);
+        }
+
+        // Cleanup
+        return () => iframe?.removeEventListener('load', sendCategories);
       } catch (error) {
         console.error('Error fetching categories:', error);
         setError('Ошибка загрузки категорий. Пожалуйста, обновите страницу или попробуйте позже.');

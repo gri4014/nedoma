@@ -1,42 +1,16 @@
 import { Response } from 'express';
-import { AuthenticatedRequest } from '../../types/auth';
+import { AuthenticatedAdminRequest, AuthenticatedUserRequest } from '../../types/auth';
 import { CategoryModel } from '../../models/entities/CategoryModel';
 import { logger } from '../../utils/logger';
 
+interface CategoryNode {
+  id: string;
+  name: string;
+  display_order: number;
+  children: CategoryNode[];
+}
+
 export class CategoryController {
-  /**
-   * Get all subcategories (categories with parent_id)
-   */
-  getSubcategories = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const query = `
-        SELECT s.id, s.name
-        FROM subcategories s
-        WHERE s.is_active = true 
-        ORDER BY s.display_order;
-      `;
-
-      // Explicitly type the response for clarity
-      interface Subcategory {
-        id: string;
-        name: string;
-      }
-
-      const result = await this.categoryModel.db.query(query);
-
-      res.json({
-        success: true,
-        data: result.rows
-      });
-    } catch (error) {
-      logger.error('Error in getSubcategories:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
-    }
-  };
-
   private categoryModel: CategoryModel;
 
   constructor() {
@@ -44,199 +18,185 @@ export class CategoryController {
   }
 
   /**
-   * Create a new category
+   * Get category hierarchy - Admin version (includes inactive categories)
    */
-  createCategory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  getCategoryHierarchy = async (req: AuthenticatedAdminRequest, res: Response): Promise<void> => {
     try {
-      const categoryData = {
-        ...req.body,
-        is_active: true
-      };
+      const query = `
+        WITH RECURSIVE category_tree AS (
+          -- Base case: Get all categories including inactive
+          SELECT 
+            id,
+            name,
+            is_active,
+            parent_id,
+            display_order,
+            1 as level,
+            ARRAY[display_order] as path
+          FROM categories
+          WHERE parent_id IS NULL
+          
+          UNION ALL
+          
+          -- Recursive case: Get all children
+          SELECT 
+            c.id,
+            c.name,
+            c.is_active,
+            c.parent_id,
+            c.display_order,
+            ct.level + 1,
+            ct.path || c.display_order
+          FROM categories c
+          INNER JOIN category_tree ct ON c.parent_id = ct.id
+        )
+        SELECT 
+          id,
+          name,
+          parent_id,
+          is_active,
+          level,
+          display_order,
+          path
+        FROM category_tree
+        ORDER BY path;
+      `;
 
-      const result = await this.categoryModel.create(categoryData);
+      const result = await this.categoryModel.db.query(query);
 
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
-
-      res.status(201).json(result);
-    } catch (error) {
-      logger.error('Error in createCategory:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
-    }
-  };
-
-  /**
-   * Get all categories
-   */
-  getCategories = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const result = await this.categoryModel.findAll({ is_active: true });
-
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
-
-      // Disable caching for this endpoint
-      res.set({
-        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      }).json(result);
-    } catch (error) {
-      logger.error('Error in getCategories:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
-    }
-  };
-
-  /**
-   * Update a category
-   */
-  updateCategory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const { categoryId } = req.params;
-
-      // Verify the category exists
-      const category = await this.categoryModel.findById(categoryId);
-      if (!category.success || !category.data) {
+      if (!result.rows || result.rows.length === 0) {
         res.status(404).json({
           success: false,
-          error: 'Category not found'
+          error: 'No categories found'
         });
         return;
       }
 
-      const updateData = req.body;
-      const result = await this.categoryModel.update(categoryId, updateData);
+      // Transform into hierarchy
+      const categoryMap = new Map<string, CategoryNode & { is_active: boolean }>();
+      const rootCategories: (CategoryNode & { is_active: boolean })[] = [];
 
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
-
-      res.json(result);
-    } catch (error) {
-      logger.error('Error in updateCategory:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
-    }
-  };
-
-  /**
-   * Delete a category (soft delete)
-   */
-  deleteCategory = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const { categoryId } = req.params;
-
-      // Verify the category exists
-      const category = await this.categoryModel.findById(categoryId);
-      if (!category.success || !category.data) {
-        res.status(404).json({
-          success: false,
-          error: 'Category not found'
+      // First pass: Create category objects
+      result.rows.forEach(row => {
+        categoryMap.set(row.id, {
+          id: row.id,
+          name: row.name,
+          display_order: row.display_order,
+          is_active: row.is_active,
+          children: []
         });
-        return;
-      }
-
-      const result = await this.categoryModel.updateStatus(categoryId, false);
-
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
-
-      res.json(result);
-    } catch (error) {
-      logger.error('Error in deleteCategory:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
       });
-    }
-  };
 
-  /**
-   * Get categories with event counts
-   */
-  getCategoriesWithEventCounts = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const result = await this.categoryModel.getCategoriesWithEventCounts();
-
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
-
-      res.json(result);
-    } catch (error) {
-      logger.error('Error in getCategoriesWithEventCounts:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
+      // Second pass: Build hierarchy
+      result.rows.forEach(row => {
+        const category = categoryMap.get(row.id);
+        if (category) {
+          if (row.parent_id === null) {
+            rootCategories.push(category);
+          } else {
+            const parent = categoryMap.get(row.parent_id);
+            if (parent) {
+              parent.children.push(category);
+            }
+          }
+        }
       });
-    }
-  };
 
-  /**
-   * Update category display order
-   */
-  updateCategoryOrder = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const { orders } = req.body;
-
-      const result = await this.categoryModel.bulkUpdateOrder(orders);
-
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
+      // Sort by display_order
+      const sortByOrder = (a: CategoryNode, b: CategoryNode) => a.display_order - b.display_order;
+      rootCategories.sort(sortByOrder);
+      rootCategories.forEach(cat => {
+        cat.children.sort(sortByOrder);
+      });
 
       res.json({
         success: true,
-        message: 'Category orders updated successfully'
+        data: rootCategories
       });
-    } catch (error) {
-      logger.error('Error in updateCategoryOrder:', error);
-      res.status(500).json({
-        success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
-      });
-    }
-  };
-
-  /**
-   * Get category hierarchy
-   */
-  getCategoryHierarchy = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
-    try {
-      const result = await this.categoryModel.getCategoryHierarchy();
-
-      if (!result.success) {
-        res.status(400).json(result);
-        return;
-      }
-
-      res.json(result);
     } catch (error) {
       logger.error('Error in getCategoryHierarchy:', error);
       res.status(500).json({
         success: false,
-        error: error instanceof Error ? error.message : 'Internal server error'
+        error: 'Internal server error'
+      });
+    }
+  };
+  /**
+   * Get active subcategories for user view
+   */
+  getSubcategories = async (req: AuthenticatedUserRequest, res: Response): Promise<void> => {
+    try {
+      const query = `
+        WITH RECURSIVE category_tree AS (
+          -- Base case: Get only active root categories
+          SELECT 
+            id,
+            name,
+            parent_id,
+            display_order,
+            1 as level,
+            ARRAY[display_order] as path
+          FROM categories
+          WHERE parent_id IS NULL AND is_active = true
+          
+          UNION ALL
+          
+          -- Recursive case: Get active children
+          SELECT 
+            c.id,
+            c.name,
+            c.parent_id,
+            c.display_order,
+            ct.level + 1,
+            ct.path || c.display_order
+          FROM categories c
+          INNER JOIN category_tree ct ON c.parent_id = ct.id
+          WHERE c.is_active = true
+        )
+        SELECT 
+          id,
+          name,
+          parent_id,
+          level,
+          display_order,
+          path
+        FROM category_tree
+        WHERE level > 1  -- Only return subcategories (level > 1)
+        ORDER BY path;
+      `;
+
+      const result = await this.categoryModel.db.query(query);
+
+      if (!result.rows || result.rows.length === 0) {
+        res.json({
+          success: true,
+          data: []
+        });
+        return;
+      }
+
+      const subcategories = result.rows.map((row: { id: string; name: string; parent_id: string; display_order: number }) => ({
+        id: row.id,
+        name: row.name,
+        parent_id: row.parent_id,
+        display_order: row.display_order
+      }));
+
+      // Sort by display_order
+      subcategories.sort((a: { display_order: number }, b: { display_order: number }) => a.display_order - b.display_order);
+
+      res.json({
+        success: true,
+        data: subcategories
+      });
+    } catch (error) {
+      logger.error('Error in getSubcategories:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal server error'
       });
     }
   };
 }
 
-// Export singleton instance
 export const categoryController = new CategoryController();

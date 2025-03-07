@@ -1,0 +1,1 @@
+BEGIN; DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'subcategories' AND column_name = 'is_active') THEN ALTER TABLE subcategories DROP COLUMN IF EXISTS is_active; END IF; END $$; COMMIT;

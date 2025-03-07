@@ -71,7 +71,7 @@ const CategorySelect: React.FC<CategorySelectProps> = ({
   const fetchCategories = useCallback(async (signal: AbortSignal) => {
     try {
       const response = await apiRef.current.get<{ data: CategoryTree[] }>(
-        '/admin/categories',
+        '/admin/categories/hierarchy/all',
         { signal }
       );
       setCategories(response.data);

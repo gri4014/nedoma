@@ -25,7 +25,7 @@ const runMigrations = async () => {
     `);
 
     // Get list of migration files
-    const migrationsDir = path.join(__dirname, 'src', 'db', 'migrations');
+    const migrationsDir = path.join(__dirname, 'src', 'db', 'nedoma_migrations');
     const migrationFiles = fs.readdirSync(migrationsDir)
       .filter(file => file.endsWith('.sql'))
       .sort();
