@@ -94,10 +94,7 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
       onTabChange(tabId);
     }
     
-    // Idea tab is a placeholder for now
-    if (tabId === 'idea') {
-      console.log(`${tabId} feature is not implemented yet`);
-    }
+    // Idea tab is now implemented in EventsPage
   }, [onUndoClick, onTabChange]);
 
   return (

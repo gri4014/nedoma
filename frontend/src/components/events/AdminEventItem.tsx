@@ -103,6 +103,17 @@ const ActionButton = styled(Button)`
   font-size: 14px;
 `;
 
+const DeleteButton = styled(ActionButton)`
+  background-color: #D21E31;
+  color: white;
+  &:hover:not(:disabled) {
+    background-color: #B01929;
+  }
+  &:active:not(:disabled) {
+    background-color: #8F1421;
+  }
+`;
+
 const Details = styled.div`
   display: flex;
   flex-direction: column;
@@ -192,9 +203,9 @@ export const AdminEventItem: React.FC<AdminEventItemProps> = ({ event, onDelete,
               <ActionButton $variant="secondary" onClick={() => onEdit(event.id)}>
                 Редактировать
               </ActionButton>
-              <ActionButton $variant="danger" onClick={handleDelete}>
+              <DeleteButton onClick={handleDelete}>
                 Удалить
-              </ActionButton>
+              </DeleteButton>
             </ButtonGroup>
           </Header>
           <MobileTopDetails>

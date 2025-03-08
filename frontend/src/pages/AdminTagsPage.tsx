@@ -77,7 +77,7 @@ const TagItem = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: ${({ theme }) => theme.spacing.md};
-  background: #000000;
+  background: #FFFFFF;
   border-radius: ${({ theme }) => theme.borderRadius.md};
 
   @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
@@ -96,11 +96,11 @@ const TagInfo = styled.div`
 const TagName = styled.div`
   font-size: ${({ theme }) => theme.typography.fontSizes.md};
   font-weight: ${({ theme }) => theme.typography.fontWeights.medium};
-  color: #FFFFFF;
+  color: #000000;
 `;
 
 const TagDetails = styled.div`
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(0, 0, 0, 0.7);
   font-size: ${({ theme }) => theme.typography.fontSizes.sm};
 `;
 
@@ -111,6 +111,17 @@ const ButtonGroup = styled.div`
   @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
     width: 100%;
     justify-content: flex-end;
+  }
+`;
+
+const DeleteButton = styled(Button)`
+  background-color: #D21E31;
+  color: white;
+  &:hover:not(:disabled) {
+    background-color: #B01929;
+  }
+  &:active:not(:disabled) {
+    background-color: #8F1421;
   }
 `;
 
@@ -267,7 +278,7 @@ const AdminTagsPage: React.FC = () => {
                     )}
                     {Array.isArray(tag.subcategories) && tag.subcategories.length > 0 && (
                       <TagDetails>
-                        Подкатегории: {getSubcategoryNames(tag.subcategories)}
+                        {getSubcategoryNames(tag.subcategories)}
                       </TagDetails>
                     )}
                   </TagInfo>
@@ -275,9 +286,9 @@ const AdminTagsPage: React.FC = () => {
                     <Button onClick={() => handleEdit(tag)} $variant="secondary">
                       Редактировать
                     </Button>
-                    <Button onClick={() => handleDelete(tag.id)} $variant="danger">
+                    <DeleteButton onClick={() => handleDelete(tag.id)}>
                       Удалить
-                    </Button>
+                    </DeleteButton>
                   </ButtonGroup>
                 </TagItem>
               ))}

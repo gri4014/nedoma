@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import { CardDeck, CardDeckHandle } from '../components/swipe/CardDeck';
@@ -6,6 +6,7 @@ import { SavedEventsTab } from '../components/saved/SavedEventsTab';
 import { BottomTabBar } from '../components/common/BottomTabBar';
 import Logo from '../components/common/Logo';
 import { IEvent } from '../types/event';
+import SwipeTutorialPopup from '../components/common/SwipeTutorialPopup';
 import { userEventApi } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -58,7 +59,17 @@ export const EventsPage: React.FC = () => {
   });
 
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   const cardDeckRef = useRef<CardDeckHandle>(null);
+  
+  // Check if user came from /tags page or if showTutorial is set in location state
+  useEffect(() => {
+    const fromTagsPage = location.state?.fromTagsPage;
+    const showTutorialFromState = location.state?.showTutorial;
+    if (fromTagsPage || showTutorialFromState) {
+      setShowTutorial(true);
+    }
+  }, [location.state]);
 
   const handleTabChange = (tabId: string) => {
     if (tabId === activeTab) return; // Prevent unnecessary state updates
@@ -78,7 +89,7 @@ export const EventsPage: React.FC = () => {
         );
         break;
       case 'idea':
-        console.log('Idea feature is not implemented yet');
+        setShowTutorial(true);
         break;
     }
   };
@@ -128,6 +139,10 @@ export const EventsPage: React.FC = () => {
         activeTab={activeTab}
         onTabChange={handleTabChange}
         onUndoClick={handleUndoClick}
+      />
+      <SwipeTutorialPopup 
+        isOpen={showTutorial} 
+        onClose={() => setShowTutorial(false)} 
       />
     </PageContainer>
   );

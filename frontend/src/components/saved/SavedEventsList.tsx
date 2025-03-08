@@ -3,6 +3,7 @@ import styled from 'styled-components';
 import { IEvent } from '../../types/event';
 import { SavedEventItem } from './SavedEventItem';
 import { userEventApi } from '../../services/api';
+import { EmptyStateMessage } from '../common/EmptyStateMessage';
 
 interface SavedEventsListProps {
   events: IEvent[];
@@ -27,17 +28,6 @@ const ListContainer = styled.div`
   > *:last-child {
     margin-bottom: 24px;
   }
-`;
-
-const EmptyState = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 300px;
-  width: 100%;
-  color: rgba(0, 0, 0, 0.5);
-  font-size: 16px;
-  padding-top: 24px; /* Push empty state message down from the top a bit */
 `;
 
 const LoadingText = styled.div`
@@ -75,7 +65,7 @@ export const SavedEventsList: React.FC<SavedEventsListProps> = ({
   }, [onEventRemoved]);
 
   if (sortedEvents.length === 0) {
-    return <EmptyState>{emptyMessage}</EmptyState>;
+    return <EmptyStateMessage>{emptyMessage}</EmptyStateMessage>;
   }
 
   return (

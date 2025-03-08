@@ -62,14 +62,7 @@ const PriceField: React.FC<PriceFieldProps> = ({
 }) => {
   const handleMinPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const min = parseInt(e.target.value) || 0;
-    const max = priceRange?.max || min;
-    onPriceRangeChange({ min, max: Math.max(min, max) });
-  };
-
-  const handleMaxPriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const max = parseInt(e.target.value) || 0;
-    const min = priceRange?.min || 0;
-    onPriceRangeChange({ min: Math.min(min, max), max });
+    onPriceRangeChange({ min, max: min });
   };
 
   const handleIsFreeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,27 +88,13 @@ const PriceField: React.FC<PriceFieldProps> = ({
       {!isFree && (
         <PriceInputsContainer>
           <FieldWrapper>
-            <Label>Минимальная цена</Label>
+            <Label>Цена от</Label>
             <InputContainer>
               <InputWithSuffix
                 type="number"
                 value={priceRange?.min || ''}
                 onChange={handleMinPriceChange}
                 min={0}
-                placeholder="0"
-              />
-              <Suffix>₽</Suffix>
-            </InputContainer>
-          </FieldWrapper>
-
-          <FieldWrapper>
-            <Label>Максимальная цена</Label>
-            <InputContainer>
-              <InputWithSuffix
-                type="number"
-                value={priceRange?.max || ''}
-                onChange={handleMaxPriceChange}
-                min={priceRange?.min || 0}
                 placeholder="0"
               />
               <Suffix>₽</Suffix>

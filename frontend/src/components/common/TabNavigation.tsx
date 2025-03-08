@@ -26,12 +26,12 @@ const TabContainer = styled.div<{ $variant?: 'primary' | 'secondary' }>`
 const TabButton = styled.button<{ $isActive: boolean; $variant?: 'primary' | 'secondary' }>`
   background: ${({ $isActive, $variant }) => 
     $isActive 
-      ? ($variant === 'secondary' ? '#E9E4FF' : '#6A4DFF')
+      ? ($variant === 'secondary' ? '#E6ECFF' : '#2840CF')
       : '#F9F7FE'
   };
   color: ${({ $isActive, $variant }) => 
     $isActive 
-      ? ($variant === 'secondary' ? '#6A4DFF' : '#FFFFFF')
+      ? ($variant === 'secondary' ? '#2840CF' : '#FFFFFF')
       : 'rgba(0, 0, 0, 0.7)'
   };
   border: none;
@@ -47,8 +47,8 @@ const TabButton = styled.button<{ $isActive: boolean; $variant?: 'primary' | 'se
   &:hover {
     background: ${({ $isActive, $variant }) => 
       $isActive 
-        ? ($variant === 'secondary' ? '#E9E4FF' : '#6A4DFF')
-        : 'rgba(106, 77, 255, 0.1)'
+        ? ($variant === 'secondary' ? '#E6ECFF' : '#2840CF')
+        : 'rgba(40, 64, 207, 0.1)'
     };
   }
 `;

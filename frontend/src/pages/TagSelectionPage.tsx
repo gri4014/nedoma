@@ -264,7 +264,7 @@ const TagSelectionPage = () => {
     try {
       await api.post('/user/preferences/tags', { preferences: selectedTags });
       // If coming from settings, return to events page
-      navigate('/events', { replace: true, state: { initialTab: returnTab } });
+      navigate('/events', { replace: true, state: { initialTab: returnTab, fromTagsPage: true } });
     } catch (error) {
       console.error('Error saving tag preferences:', error);
       setError('Ошибка сохранения тегов. Пожалуйста, попробуйте снова.');

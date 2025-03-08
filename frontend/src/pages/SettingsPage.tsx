@@ -56,7 +56,7 @@ const ButtonIcon = styled.span`
 `;
 
 const SettingsButton = styled.button`
-  background: #6C5CE7;
+  background: #2840CF;
   color: white;
   border: none;
   padding: 16px 24px;
@@ -67,10 +67,10 @@ const SettingsButton = styled.button`
   display: flex;
   align-items: center;
   transition: all 0.2s ease;
-  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.2);
+  box-shadow: 0 2px 8px rgba(40, 64, 207, 0.2);
   
   &:hover {
-    background: #5849BE;
+    background: #2235B1;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
   }
@@ -161,7 +161,7 @@ const SettingsPage = () => {
           } else if (tabId === 'cards') {
             navigate('/events', { state: { initialTab: 'cards' } });
           } else if (tabId === 'idea') {
-            console.log('Idea feature is not implemented yet');
+            navigate('/events', { state: { initialTab: 'cards', showTutorial: true } });
           }
         }}
       />

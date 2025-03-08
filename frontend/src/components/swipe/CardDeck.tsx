@@ -6,6 +6,7 @@ import { IEvent } from '../../types/event';
 import { IRecommendationResponse, IRecommendationScore } from '../../types/recommendation';
 import { userEventApi } from '../../services/api';
 import { SwipeCard } from './SwipeCard';
+import { EmptyStateMessage } from '../common/EmptyStateMessage';
 
 const DeckContainer = styled.div`
   width: 100%;
@@ -402,9 +403,7 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
   if (noMoreCardsToShow && eventQueue.length === 0 && !loading && !initialLoading) {
     return (
       <DeckContainer>
-        <CardContainer>
-          <LoadingText>На данный момент это все карточки</LoadingText>
-        </CardContainer>
+        <EmptyStateMessage>На данный момент это все карточки</EmptyStateMessage>
       </DeckContainer>
     );
   }

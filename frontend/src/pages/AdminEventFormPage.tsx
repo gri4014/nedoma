@@ -1,16 +1,25 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
+import { IEvent } from '../types/event';
 import EventForm from '../components/events/form/EventForm';
 import AdminLogo from '../components/common/AdminLogo';
 import AdminBottomTabBar from '../components/common/AdminBottomTabBar';
+import { LoadingSpinner } from '../components/common/LoadingSpinner';
 
 const Container = styled.div`
   min-height: 100vh;
   background-color: ${({ theme }) => theme.colors.background.default};
   padding-top: ${({ theme }) => theme.spacing.xl};
   padding-bottom: calc(83px + env(safe-area-inset-bottom)); /* For bottom bar */
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
 `;
 
 const Header = styled.header`
@@ -47,18 +56,55 @@ const Content = styled.main`
 const AdminEventFormPage: React.FC = () => {
   const navigate = useNavigate();
   const api = useApi();
+  const { eventId } = useParams<{ eventId: string }>();
+  const [event, setEvent] = useState<IEvent | null>(null);
+  const [loading, setLoading] = useState(!!eventId);
+  const [error, setError] = useState<string | null>(null);
+  
+  const isEditMode = !!eventId;
+
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchEvent = async () => {
+        try {
+          setLoading(true);
+          const response = await api.get<{ success: boolean, data: IEvent }>(`/admin/events/${eventId}`);
+          if (response.success && response.data) {
+            setEvent(response.data);
+          } else {
+            throw new Error('Failed to load event data');
+          }
+        } catch (error) {
+          console.error('Error fetching event:', error);
+          setError('Failed to load event data. Please try again later.');
+        } finally {
+          setLoading(false);
+        }
+      };
+      
+      fetchEvent();
+    }
+  }, [api, eventId, isEditMode]);
 
   const handleSubmit = async (formData: FormData) => {
     try {
-      await api.post('/admin/events', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      if (isEditMode) {
+        await api.put(`/admin/events/${eventId}`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      } else {
+        await api.post('/admin/events', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+      }
       navigate('/admin/events');
     } catch (error) {
-      console.error('Error creating event:', error);
-      throw new Error('Failed to create event. Please try again later.');
+      console.error(`Error ${isEditMode ? 'updating' : 'creating'} event:`, error);
+      throw new Error(`Failed to ${isEditMode ? 'update' : 'create'} event. Please try again later.`);
     }
   };
 
@@ -72,15 +118,24 @@ const AdminEventFormPage: React.FC = () => {
         <AdminLogo />
         <Header>
           <HeaderContent>
-            <h1>Создание мероприятия</h1>
+            <h1>{isEditMode ? 'Редактирование мероприятия' : 'Создание мероприятия'}</h1>
           </HeaderContent>
         </Header>
         
         <Content>
-          <EventForm
-            onSubmit={handleSubmit}
-            onCancel={handleCancel}
-          />
+          {loading ? (
+            <LoadingContainer>
+              <LoadingSpinner size="lg" />
+            </LoadingContainer>
+          ) : error ? (
+            <div>{error}</div>
+          ) : (
+            <EventForm
+              initialData={event || undefined}
+              onSubmit={handleSubmit}
+              onCancel={handleCancel}
+            />
+          )}
         </Content>
       </Container>
       <AdminBottomTabBar />

@@ -2,7 +2,7 @@ const theme = {
   colors: {
     primary: '#2840CF', // Global accent color
     secondary: '#8E7DBC', // Updated secondary color
-    error: '#dc3545',
+    error: '#ff0000',
     success: '#28a745',
     text: {
       primary: '#000000', // Changed to black
