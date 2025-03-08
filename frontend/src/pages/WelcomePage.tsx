@@ -3,16 +3,24 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import api from '../services/api';
 
-const Container = styled.div`
-  width: 100vw;
-  height: 100vh;
+const PageContainer = styled.div`
+  width: 100%;
+  min-height: 100vh;
+  background-color: #F9F7FE;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: #F9F7FE;
   padding: 20px;
-  gap: 24px;
+`;
+
+const ContentContainer = styled.div`
+  width: 100%;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
 `;
 
 const Title = styled.h1`
@@ -20,42 +28,60 @@ const Title = styled.h1`
   color: #333;
   margin: 0;
   text-align: center;
+  font-weight: 600;
 `;
 
 const Input = styled.input`
   width: 100%;
-  max-width: 300px;
-  padding: 12px 16px;
-  border: 2px solid #ddd;
-  border-radius: 8px;
+  max-width: 380px;
+  padding: 16px 24px;
+  border: 1px solid #E0E0E0;
+  border-radius: 12px;
   font-size: 16px;
   outline: none;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
+  background: white;
 
   &:focus {
-    border-color: #007bff;
+    border-color: #6C5CE7;
+    box-shadow: 0 2px 8px rgba(108, 92, 231, 0.1);
+  }
+
+  &:disabled {
+    background: #F5F5F5;
+    cursor: not-allowed;
   }
 `;
 
 const ContinueButton = styled.button<{ $isValid: boolean }>`
-  background: ${props => props.$isValid ? '#007bff' : '#ccc'};
+  background: ${props => props.$isValid ? '#6C5CE7' : '#E0E0E0'};
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 12px 30px;
+  border-radius: 12px;
+  padding: 16px 40px;
   font-size: 16px;
   cursor: ${props => props.$isValid ? 'pointer' : 'not-allowed'};
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: ${props => props.$isValid ? '0 2px 8px rgba(108, 92, 231, 0.2)' : 'none'};
 
   &:hover {
-    background: ${props => props.$isValid ? '#0056b3' : '#ccc'};
+    background: ${props => props.$isValid ? '#5849BE' : '#E0E0E0'};
+    transform: ${props => props.$isValid ? 'translateY(-1px)' : 'none'};
+    box-shadow: ${props => props.$isValid ? '0 4px 12px rgba(108, 92, 231, 0.3)' : 'none'};
+  }
+
+  &:active {
+    transform: translateY(0);
   }
 `;
 
 const ErrorMessage = styled.div`
-  color: #dc3545;
+  color: #FF6B6B;
   font-size: 14px;
-  margin-top: -12px;
+  margin-top: -24px;
+  text-align: center;
 `;
 
 const WelcomePage = () => {
@@ -185,7 +211,8 @@ const WelcomePage = () => {
   };
 
   return (
-    <Container>
+    <PageContainer>
+      <ContentContainer>
       <Title>Добро пожаловать в NEDOMA</Title>
       <Input
         type="text"
@@ -203,7 +230,8 @@ const WelcomePage = () => {
       >
         Продолжить
       </ContinueButton>
-    </Container>
+      </ContentContainer>
+    </PageContainer>
   );
 };
 

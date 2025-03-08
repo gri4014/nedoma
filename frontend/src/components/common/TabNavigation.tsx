@@ -16,16 +16,18 @@ interface TabNavigationProps {
 const TabContainer = styled.div<{ $variant?: 'primary' | 'secondary' }>`
   display: flex;
   gap: 1px;
-  background: transparent;
+  background: #F9F7FE;
   padding: ${({ $variant }) => $variant === 'secondary' ? '8px 16px' : '16px 20px'};
   width: 100%;
+  box-shadow: none;
+  border-bottom: none;
 `;
 
 const TabButton = styled.button<{ $isActive: boolean; $variant?: 'primary' | 'secondary' }>`
   background: ${({ $isActive, $variant }) => 
     $isActive 
       ? ($variant === 'secondary' ? '#E9E4FF' : '#6A4DFF')
-      : 'transparent'
+      : '#F9F7FE'
   };
   color: ${({ $isActive, $variant }) => 
     $isActive 
@@ -40,11 +42,7 @@ const TabButton = styled.button<{ $isActive: boolean; $variant?: 'primary' | 'se
   border-radius: 8px;
   flex: 1;
   transition: all 0.2s ease;
-  box-shadow: ${({ $isActive, $variant }) => 
-    $isActive && $variant !== 'secondary' 
-      ? '0 2px 4px rgba(106, 77, 255, 0.2)'
-      : 'none'
-  };
+  box-shadow: none;
 
   &:hover {
     background: ${({ $isActive, $variant }) => 

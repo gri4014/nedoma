@@ -422,7 +422,7 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
               initial="enter"
               animate="center"
               exit="exit"
-              style={{ zIndex: eventQueue.length - index }}
+              style={{ zIndex: 10 + (eventQueue.length - index) }}
             >
               <SwipeCard 
                 event={event}

@@ -6,20 +6,6 @@ import Logo from '../components/common/Logo';
 import { useAuth } from '../contexts/AuthContext';
 import api from '../services/api';
 
-const Title = styled.h1`
-  font-size: 24px;
-  color: #000000;
-  position: absolute;
-  top: 95px;
-  left: 0;
-  right: 0;
-  text-align: center;
-  z-index: 1;
-  width: 100%;
-  padding: 0 20px;
-  margin: 0;
-`;
-
 const PageContainer = styled.div`
   width: 100%;
   min-height: 100vh;
@@ -30,33 +16,38 @@ const PageContainer = styled.div`
 `;
 
 const ContentContainer = styled.div`
-  position: absolute;
-  top: 159px;
-  left: 0;
-  right: 0;
-  bottom: 84px;
-  display: flex;
-  justify-content: center;
-  padding: 0 20px;
+  flex: 1;
+  max-width: 520px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 20px;
+  padding-bottom: 84px;
+  margin-top: 75px;
+`;
+
+const Title = styled.h1`
+  font-size: 24px;
+  color: #333;
+  margin-bottom: 40px;
+  text-align: center;
 `;
 
 const SettingsContainer = styled.div`
-  width: 100%;
-  max-width: 600px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 12px;
+  gap: 16px;
+  width: 100%;
 `;
 
 const ButtonIcon = styled.span`
   width: 20px;
   height: 20px;
   margin-right: 12px;
-  opacity: 0.7;
   display: flex;
   align-items: center;
   justify-content: center;
+  color: inherit;
+  opacity: 0.9;
 
   svg {
     width: 100%;
@@ -65,46 +56,48 @@ const ButtonIcon = styled.span`
 `;
 
 const SettingsButton = styled.button`
-  background: #6A4DFF;
+  background: #6C5CE7;
   color: white;
   border: none;
-  padding: 14px 20px;
+  padding: 16px 24px;
   border-radius: 12px;
   font-size: 16px;
   cursor: pointer;
   width: 100%;
-  max-width: 380px;
   display: flex;
   align-items: center;
-  transition: background 0.2s ease;
-  box-shadow: 0 4px 8px rgba(106, 77, 255, 0.2);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.2);
   
   &:hover {
-    background: #5A3DEF;
+    background: #5849BE;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
   }
 
   &:active {
-    background: #4A2DDF;
+    transform: translateY(0);
   }
 
   &::after {
     content: "›";
     font-size: 24px;
-    color: rgba(255, 255, 255, 0.8);
     margin-left: auto;
+    opacity: 0.8;
   }
 `;
 
 const LogoutButton = styled(SettingsButton)`
   background: transparent;
-  border: 1px solid #FF4444;
-  color: #FF4444;
-  justify-content: center;
-  margin-top: 20px;
+  border: 1px solid #FF6B6B;
+  color: #FF6B6B;
   box-shadow: none;
 
   &:hover {
-    background: rgba(255, 68, 68, 0.1);
+    background: rgba(255, 107, 107, 0.05);
+    border-color: #FF5252;
+    color: #FF5252;
+    box-shadow: none;
   }
 
   &::after {

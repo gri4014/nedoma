@@ -19,7 +19,7 @@ const ItemContainer = styled.div`
 
   @media (max-width: 600px) {
     min-height: auto;
-    padding: 16px;
+    padding: 12px;
   }
 `;
 
@@ -28,7 +28,7 @@ const TopSection = styled.div`
   width: 100%;
 
   @media (max-width: 600px) {
-    margin-bottom: 16px;
+    margin-bottom: 12px;
   }
 `;
 
@@ -52,10 +52,10 @@ const ImageContainer = styled.div<{ $imageUrl?: string }>`
 
 const ContentContainer = styled.div`
   flex: 1;
-  padding: 20px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
   overflow-y: visible;
   height: auto;
@@ -69,7 +69,7 @@ const BottomSection = styled.div`
   display: none;
   width: 100%;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 
   @media (max-width: 600px) {
     display: flex;
@@ -109,7 +109,7 @@ const RemoveButton = styled.button`
 const Details = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 
   @media (max-width: 600px) {
     display: none;
@@ -119,7 +119,7 @@ const Details = styled.div`
 const MobileTopDetails = styled.div`
   display: none;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 
   @media (max-width: 600px) {
     display: flex;
@@ -130,7 +130,7 @@ const MobileTopDetails = styled.div`
 const DateContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
 `;
 
 const DateBadge = styled.div`
@@ -159,7 +159,7 @@ const TagsContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 16px;
+  margin-top: 12px;
 `;
 
 const TagButton = styled.div`

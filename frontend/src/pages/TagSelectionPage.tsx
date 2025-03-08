@@ -3,18 +3,29 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
 import api from '../services/api';
 
-const Container = styled.div`
-  max-width: 800px;
+const PageContainer = styled.div`
+  width: 100%;
+  min-height: 100vh;
+  background-color: #F9F7FE;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+`;
+
+const ContentContainer = styled.div`
+  flex: 1;
+  max-width: 520px;
+  width: 100%;
   margin: 0 auto;
   padding: 20px;
-  min-height: 100vh;
-  background: #F9F7FE;
+  padding-bottom: 84px;
 `;
 
 const Title = styled.h1`
   font-size: 24px;
   color: #333;
   margin-bottom: 30px;
+  text-align: center;
 `;
 
 const ErrorMessage = styled.div`
@@ -28,10 +39,6 @@ const ErrorMessage = styled.div`
 
 const SubcategorySection = styled.div`
   margin-bottom: 40px;
-  padding: 20px;
-  background: white;
-  border-radius: 10px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 `;
 
 const SubcategoryTitle = styled.h2`
@@ -45,28 +52,30 @@ const TagGroup = styled.div`
 `;
 
 const TagTitle = styled.h3`
-  font-size: 18px;
+  font-size: 16px;
   color: #666;
-  margin-bottom: 15px;
+  margin-bottom: 12px;
 `;
 
 const TagOptionsContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 `;
 
 const TagOption = styled.button<{ isSelected: boolean }>`
   padding: 8px 16px;
-  border-radius: 20px;
-  border: 2px solid ${props => props.isSelected ? '#007bff' : '#ddd'};
-  background: ${props => props.isSelected ? '#007bff' : 'white'};
-  color: ${props => props.isSelected ? 'white' : '#333'};
+  border-radius: 12px;
+  border: 1px solid ${props => props.isSelected ? '#6C5CE7' : '#E0E0E0'};
+  background: ${props => props.isSelected ? '#6C5CE7' : 'transparent'};
+  color: ${props => props.isSelected ? 'white' : '#666'};
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 
   &:hover {
-    border-color: #007bff;
+    border-color: #6C5CE7;
+    color: ${props => props.isSelected ? 'white' : '#6C5CE7'};
   }
 `;
 
@@ -75,23 +84,27 @@ const ContinueButton = styled.button`
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
-  background: #007bff;
+  background: #6C5CE7;
   color: white;
   border: none;
-  border-radius: 8px;
-  padding: 12px 30px;
+  border-radius: 12px;
+  padding: 14px 40px;
   font-size: 16px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
   z-index: 1000;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.2);
 
   &:hover {
-    background: #0056b3;
+    background: #5849BE;
+    transform: translateX(-50%) translateY(-1px);
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
   }
 
   &:disabled {
-    background: #cccccc;
+    background: #E0E0E0;
     cursor: not-allowed;
+    box-shadow: none;
   }
 `;
 
@@ -266,7 +279,8 @@ const TagSelectionPage = () => {
   };
 
   return (
-    <Container>
+    <PageContainer>
+      <ContentContainer>
       <Title>Выберите теги</Title>
       {error && <ErrorMessage>{error}</ErrorMessage>}
       {subcategories.map(subcategory => (
@@ -296,7 +310,8 @@ const TagSelectionPage = () => {
       >
         Продолжить
       </ContinueButton>
-    </Container>
+      </ContentContainer>
+    </PageContainer>
   );
 };
 

@@ -23,7 +23,7 @@ const ContentContainer = styled.div`
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  padding: 0 20px;
+  padding: 0 2px; /* Bare minimum side padding */
   padding-bottom: 84px; /* Space for bottom tab bar - exactly matching its height */
   min-height: 0; /* Required for proper flex behavior with scrolling */
   margin-top: 75px; /* Space after fixed logo (25px logo padding + 25px padding bottom + 25px spacing) */
@@ -31,7 +31,7 @@ const ContentContainer = styled.div`
 
 const DeckContainer = styled.div`
   width: 100%;
-  max-width: 400px;
+  max-width: 520px; /* Increased max-width */
   position: relative;
   display: flex;
   align-items: flex-end;
@@ -41,7 +41,7 @@ const DeckContainer = styled.div`
 
 const SavedContainer = styled.div`
   width: 100%;
-  max-width: 600px;
+  max-width: 520px; /* Match DeckContainer width */
   display: flex;
   flex-direction: column;
   position: relative;

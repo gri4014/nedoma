@@ -8,10 +8,10 @@ const LogoContainer = styled.div`
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 1;
   padding: 25px 0;
   background-color: #F9F7FE;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
 `;
 
 const LogoImage = styled.img`

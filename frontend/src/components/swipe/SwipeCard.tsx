@@ -55,13 +55,12 @@ const TouchArea = styled.div`
 const Card = styled.div<{ $swipeDirection: string }>`
   position: relative;
   width: 100%;
-  height: 100%;
+  height: 92%;
   pointer-events: none;
   background: #292929;
   border-radius: 12px;
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
   user-select: none;
-  overflow: hidden;
 `;
 
 const CardContent = styled.div`
@@ -69,6 +68,8 @@ const CardContent = styled.div`
   width: 100%;
   height: 100%;
   z-index: 1;
+  overflow: hidden;
+  border-radius: 12px;
 `;
 
 const Overlay = styled.div<{ $swipeDirection: string }>`
@@ -145,7 +146,7 @@ const DirectionIndicator = styled.div<{ $direction: string; $visible: boolean }>
 
 const SwipeButtonsContainer = styled.div`
   position: absolute;
-  bottom: 20px;
+  bottom: 0;
   left: 0;
   right: 0;
   display: flex;
@@ -188,17 +189,16 @@ const SwipeButton = styled.button<{ $type: 'left' | 'up' | 'right' }>`
       case 'left':
         return 'linear-gradient(135deg, #FFEFEF, #F5B8B8)';
       case 'up':
-        return 'linear-gradient(135deg, #576EF9, #4054DB)';
+        return 'linear-gradient(135deg, #2853F7, #1529B0)';
       case 'right':
         return 'linear-gradient(135deg, #BFECCF, #70E381)';
       default:
         return 'transparent';
     }
   }};
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 
   &:hover {
-    transform: scale(1.05);
+    transform: scale(1.03);
   }
 
   &:active {
@@ -287,7 +287,6 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ event, onSwipe, active = t
         opacity: 1
       }}
     >
-      <TouchArea />
       <Card $swipeDirection={swipeDirection}>
         <CardContent>
           <EventCard event={event} />
@@ -302,10 +301,11 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ event, onSwipe, active = t
         <DirectionIndicator $direction="up" $visible={swipeDirection === 'up'}>
           <UpArrowIcon />
         </DirectionIndicator>
-        
-        {active && (
-          <SwipeButtonsContainer>
-            <SwipeButton 
+      </Card>
+      <TouchArea />
+      {active && (
+        <SwipeButtonsContainer style={{ transform: 'translateY(-10px)' }}>
+          <SwipeButton 
               $type="left" 
               onClick={() => {
                 setSwipeDirection('left');
@@ -354,7 +354,6 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ event, onSwipe, active = t
             </SwipeButton>
           </SwipeButtonsContainer>
         )}
-      </Card>
     </CardWrapper>
   );
 };

@@ -22,12 +22,11 @@ const TabBarContainer = styled.div`
   height: 64px;
   background-color: #F9F7FE;
   display: flex;
-  justify-content: space-around;
+  justify-content: center;
   align-items: center;
   padding-bottom: env(safe-area-inset-bottom);
-  border-top: 1px solid #D8D0F0;
+  gap: 12px;
   z-index: 10;
-  box-shadow: 0 -1px 5px rgba(0, 0, 0, 0.05);
 `;
 
 const TabButton = styled.button<{ $isActive: boolean }>`
@@ -36,7 +35,7 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   justify-content: center;
   background: transparent;
   border: none;
-  color: ${props => props.$isActive ? '#6A4DFF' : 'rgba(0, 0, 0, 0.6)'};
+  color: ${props => props.$isActive ? '#2840CF' : 'rgba(131, 122, 150, 0.85)'}; /* #837A96 with 85% opacity for inactive state */
   width: 48px;
   height: 48px;
   cursor: pointer;
@@ -48,7 +47,7 @@ const TabButton = styled.button<{ $isActive: boolean }>`
   touch-action: manipulation;
 
   &:hover {
-    color: ${props => props.$isActive ? '#6A4DFF' : '#000000'};
+    color: ${props => props.$isActive ? '#2840CF' : '#000000'};
   }
   
   /* Prevent double-tap zoom on iOS */
@@ -64,22 +63,22 @@ export const BottomTabBar: React.FC<BottomTabBarProps> = ({ activeTab, onTabChan
     },
     {
       id: 'idea',
-      icon: (filled) => <IdeaIcon filled={filled} />,
+      icon: () => <IdeaIcon />,
       ariaLabel: 'Идея'
     },
     {
       id: 'cards',
-      icon: (filled) => <HomeIcon filled={filled} />,
+      icon: () => <HomeIcon />,
       ariaLabel: 'Главная'
     },
     {
       id: 'saved',
-      icon: (filled) => <CalendarIcon filled={filled} />,
+      icon: () => <CalendarIcon />,
       ariaLabel: 'События'
     },
     {
       id: 'settings',
-      icon: (filled) => <SettingsIcon filled={filled} />,
+      icon: () => <SettingsIcon />,
       ariaLabel: 'Настройки'
     }
   ];

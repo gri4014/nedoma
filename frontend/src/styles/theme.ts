@@ -1,6 +1,6 @@
 const theme = {
   colors: {
-    primary: '#6A4DFF', // Updated primary color to complement the new background
+    primary: '#2840CF', // Global accent color
     secondary: '#8E7DBC', // Updated secondary color
     error: '#dc3545',
     success: '#28a745',

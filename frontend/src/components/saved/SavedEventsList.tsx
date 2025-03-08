@@ -11,7 +11,7 @@ interface SavedEventsListProps {
 }
 
 const ListContainer = styled.div`
-  padding: 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;

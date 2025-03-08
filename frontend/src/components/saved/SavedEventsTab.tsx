@@ -32,8 +32,11 @@ const TabNavigationContainer = styled.div`
   width: 100%;
   z-index: 5;
   background-color: #F9F7FE;
-  border-top: 1px solid #D8D0F0;
-  box-shadow: 0px -2px 8px rgba(0, 0, 0, 0.05);
+  box-shadow: none !important;
+  border: none !important;
+  &:before, &:after {
+    display: none !important;
+  }
 `;
 
 const LoadingText = styled.div`
