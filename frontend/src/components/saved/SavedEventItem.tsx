@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { IEvent } from '../../types/event';
+import { LinkIcon } from '../common/Icons';
 
 interface SavedEventItemProps {
   event: IEvent;
@@ -155,6 +156,19 @@ const Description = styled.p`
   white-space: pre-wrap;
 `;
 
+const LinkIconWrapper = styled.a`
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: white;
+  opacity: 1;
+  transition: opacity 0.2s;
+  
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
 const TagsContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -176,6 +190,7 @@ const TagButton = styled.div`
 `;
 
 export const SavedEventItem: React.FC<SavedEventItemProps> = ({ event, onRemove }) => {
+  console.log('Event links:', event?.links);
   return (
     <ItemContainer>
       <TopSection>
@@ -184,7 +199,14 @@ export const SavedEventItem: React.FC<SavedEventItemProps> = ({ event, onRemove 
         />
         <ContentContainer>
           <Header>
-            <Title>{event.name}</Title>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <Title>{event.name}</Title>
+              {event?.links?.[0] && (
+                <LinkIconWrapper href={event.links[0]} target="_blank" rel="noopener noreferrer">
+                  <LinkIcon />
+                </LinkIconWrapper>
+              )}
+            </div>
             <RemoveButton onClick={() => onRemove(event.id)}>×</RemoveButton>
           </Header>
           <MobileTopDetails>

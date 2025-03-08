@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { IEvent } from '../../types/event';
+import { LinkIcon } from '../common/Icons';
 
 const CardContainer = styled.div`
   width: 100%;
@@ -93,6 +94,27 @@ const Title = styled.h2`
   line-height: 1.2;
 `;
 
+const TitleContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+`;
+
+const LinkIconWrapper = styled.a`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+  pointer-events: auto;
+  z-index: 30;
+  
+  &:hover {
+    opacity: 1;
+  }
+`;
+
 const ContentSection = styled.div`
   flex: 1;
   background: black;
@@ -178,7 +200,19 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
               ))}
             </DatesRow>
           )}
-          <Title>{event?.name || 'Загрузка...'}</Title>
+          <TitleContainer>
+            <Title>{event?.name || 'Загрузка...'}</Title>
+            {event?.links?.[0] && (
+              <LinkIconWrapper 
+                href={event.links[0]} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <LinkIcon />
+              </LinkIconWrapper>
+            )}
+          </TitleContainer>
         </ContentOverlay>
       </ImageSection>
       <ContentSection>

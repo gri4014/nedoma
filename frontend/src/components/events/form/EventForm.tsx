@@ -248,6 +248,16 @@ const EventForm: React.FC<EventFormProps> = ({
           error={errors.address}
           required
         />
+
+        <Input
+          label="Ссылка (необязательно)"
+          value={formData.links[0] || ''}
+          onChange={(e) => setFormData(prev => ({ 
+            ...prev, 
+            links: e.target.value ? [e.target.value] : [] 
+          }))}
+          placeholder="https://example.com"
+        />
       </FormSection>
 
       <FormSection>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import styled from 'styled-components';
 import { motion, useAnimation, PanInfo } from 'framer-motion';
 import { EventCard } from './EventCard';
@@ -46,10 +46,17 @@ const CardWrapper = styled(motion.div)`
   }
 `;
 
-const TouchArea = styled.div`
+const TouchArea = styled.div<{ $hasLink: boolean; $isDragging: boolean }>`
   position: absolute;
   inset: 0;
   z-index: 20;
+  cursor: ${({ $hasLink, $isDragging }) => 
+    $isDragging ? 'grabbing' : ($hasLink ? 'pointer' : 'grab')};
+  
+  /* Allow links to be clickable by not capturing pointer events on the link icon */
+  a[href] {
+    pointer-events: auto;
+  }
 `;
 
 const Card = styled.div<{ $swipeDirection: string }>`
@@ -70,6 +77,7 @@ const CardContent = styled.div`
   z-index: 1;
   overflow: hidden;
   border-radius: 12px;
+  pointer-events: none;
 `;
 
 const Overlay = styled.div<{ $swipeDirection: string }>`
@@ -209,14 +217,62 @@ const SwipeButton = styled.button<{ $type: 'left' | 'up' | 'right' }>`
 export const SwipeCard: React.FC<SwipeCardProps> = ({ event, onSwipe, active = true }) => {
   const controls = useAnimation();
   const [swipeDirection, setSwipeDirection] = useState<'left' | 'right' | 'up' | 'none'>('none');
+  const [isDragging, setIsDragging] = useState(false);
+  const [tapStartTime, setTapStartTime] = useState<number>(0);
+  const [tapStartPosition, setTapStartPosition] = useState<{ x: number, y: number } | null>(null);
+  
+  // Constants for gesture detection
+  const TAP_THRESHOLD_DURATION = 200; // milliseconds
+  const TAP_MOVEMENT_THRESHOLD = 10; // pixels
+  const SWIPE_THRESHOLD = 80;
+  const VELOCITY_THRESHOLD = 150;
+
+  const hasLink = !!event?.links?.[0];
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (!active) return;
+    
+    setTapStartTime(Date.now());
+    setTapStartPosition({ x: e.clientX, y: e.clientY });
+    setIsDragging(false);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!active || !tapStartPosition) return;
+    
+    const tapDuration = Date.now() - tapStartTime;
+    const moveDistance = Math.sqrt(
+      Math.pow(e.clientX - tapStartPosition.x, 2) + 
+      Math.pow(e.clientY - tapStartPosition.y, 2)
+    );
+    
+    // If it was a short tap with minimal movement and the event has a link
+    if (tapDuration < TAP_THRESHOLD_DURATION && 
+        moveDistance < TAP_MOVEMENT_THRESHOLD && 
+        hasLink && 
+        !isDragging) {
+      // Open the link in a new tab
+      window.open(event.links[0], '_blank', 'noopener,noreferrer');
+    }
+    
+    setTapStartPosition(null);
+  };
 
   const handleDrag = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    if (!active) return;
+    
     const rotate = info.offset.x * 0.05;
     controls.set({
       x: info.offset.x,
       y: info.offset.y,
       rotateZ: rotate
     });
+
+    // If movement exceeds threshold, consider it a drag
+    if (Math.abs(info.offset.x) > TAP_MOVEMENT_THRESHOLD || 
+        Math.abs(info.offset.y) > TAP_MOVEMENT_THRESHOLD) {
+      setIsDragging(true);
+    }
 
     if (Math.abs(info.offset.y) > Math.abs(info.offset.x) && info.offset.y < -5) {
       setSwipeDirection('up');
@@ -228,38 +284,49 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ event, onSwipe, active = t
   };
 
   const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
-    const swipeThreshold = 80;
-    const velocityThreshold = 150;
-
-    if (Math.abs(info.offset.y) > Math.abs(info.offset.x) && 
-        (info.offset.y < -swipeThreshold || info.velocity.y < -velocityThreshold)) {
-      setSwipeDirection('up');
-      controls.start({
-        y: -window.innerHeight,
-        opacity: 0,
-        transition: { 
-          duration: 0.15,
-          ease: "easeOut",
-          velocity: info.velocity.y,
-          opacity: { duration: 0.1 }
-        }
-      }).then(() => onSwipe('up'));
-    } else if (Math.abs(info.offset.x) > swipeThreshold || Math.abs(info.velocity.x) > velocityThreshold) {
-      const direction = info.offset.x > 0 ? 'right' : 'left';
-      setSwipeDirection(direction);
-      controls.start({
-        x: direction === 'left' ? -window.innerWidth : window.innerWidth,
-        rotateZ: direction === 'left' ? -10 : 10,
-        opacity: 0,
-        transition: { 
-          duration: 0.15,
-          ease: "easeOut",
-          velocity: info.velocity.x,
-          opacity: { duration: 0.1 }
-        }
-      }).then(() => onSwipe(direction));
+    if (!active) return;
+    
+    // Only process as a swipe if we've determined it's a dragging gesture
+    if (isDragging) {
+      if (Math.abs(info.offset.y) > Math.abs(info.offset.x) && 
+          (info.offset.y < -SWIPE_THRESHOLD || info.velocity.y < -VELOCITY_THRESHOLD)) {
+        setSwipeDirection('up');
+        controls.start({
+          y: -window.innerHeight,
+          opacity: 0,
+          transition: { 
+            duration: 0.15,
+            ease: "easeOut",
+            velocity: info.velocity.y,
+            opacity: { duration: 0.1 }
+          }
+        }).then(() => onSwipe('up'));
+      } else if (Math.abs(info.offset.x) > SWIPE_THRESHOLD || Math.abs(info.velocity.x) > VELOCITY_THRESHOLD) {
+        const direction = info.offset.x > 0 ? 'right' : 'left';
+        setSwipeDirection(direction);
+        controls.start({
+          x: direction === 'left' ? -window.innerWidth : window.innerWidth,
+          rotateZ: direction === 'left' ? -10 : 10,
+          opacity: 0,
+          transition: { 
+            duration: 0.15,
+            ease: "easeOut",
+            velocity: info.velocity.x,
+            opacity: { duration: 0.1 }
+          }
+        }).then(() => onSwipe(direction));
+      } else {
+        setSwipeDirection('none');
+        controls.start({
+          x: 0,
+          y: 0,
+          rotateZ: 0,
+          opacity: 1,
+          transition: { duration: 0.15, ease: "easeOut" }
+        });
+      }
     } else {
-      setSwipeDirection('none');
+      // If it wasn't a drag, reset position
       controls.start({
         x: 0,
         y: 0,
@@ -268,6 +335,8 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ event, onSwipe, active = t
         transition: { duration: 0.15, ease: "easeOut" }
       });
     }
+    
+    setIsDragging(false);
   };
 
   return (
@@ -302,7 +371,12 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({ event, onSwipe, active = t
           <UpArrowIcon />
         </DirectionIndicator>
       </Card>
-      <TouchArea />
+      <TouchArea 
+        $hasLink={hasLink} 
+        $isDragging={isDragging}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+      />
       {active && (
         <SwipeButtonsContainer style={{ transform: 'translateY(-10px)' }}>
           <SwipeButton 

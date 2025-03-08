@@ -2,6 +2,7 @@ import React from 'react';
 import styled from 'styled-components';
 import { IEvent } from '../../types/event';
 import { Button } from '../common/Button';
+import { LinkIcon } from '../common/Icons';
 
 interface AdminEventItemProps {
   event: IEvent;
@@ -163,6 +164,20 @@ const Description = styled.p`
   white-space: pre-wrap;
 `;
 
+const LinkIconWrapper = styled.a`
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  color: white;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+  margin-top: 8px;
+  
+  &:hover {
+    opacity: 1;
+  }
+`;
+
 const TagsContainer = styled.div`
   display: flex;
   flex-wrap: wrap;
@@ -198,7 +213,14 @@ export const AdminEventItem: React.FC<AdminEventItemProps> = ({ event, onDelete,
         />
         <ContentContainer>
           <Header>
-            <Title>{event.name}</Title>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <Title>{event.name}</Title>
+              {event?.links?.[0] && (
+                <LinkIconWrapper href={event.links[0]} target="_blank" rel="noopener noreferrer">
+                  <LinkIcon />
+                </LinkIconWrapper>
+              )}
+            </div>
             <ButtonGroup>
               <ActionButton $variant="secondary" onClick={() => onEdit(event.id)}>
                 Редактировать
