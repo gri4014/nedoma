@@ -4,10 +4,9 @@ export interface IEvent {
   id: string;
   name: string;
   short_description: string;
-  long_description: string;
+  long_description?: string;
   image_urls: string[];
   links: string[];
-  relevance_start: Date;
   event_dates: Date[];
   address: string;
   is_active: boolean;
@@ -18,6 +17,7 @@ export interface IEvent {
   } | null;
   subcategories: string[];
   tags: Record<string, string[]>;
+  display_dates: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -25,10 +25,9 @@ export interface IEvent {
 export interface ICreateEvent {
   name: string;
   short_description: string;
-  long_description: string;
+  long_description?: string;
   image_urls: string[];
   links: string[];
-  relevance_start: Date;
   event_dates: Date[];
   address: string;
   is_active: boolean;
@@ -39,6 +38,7 @@ export interface ICreateEvent {
   } | null;
   subcategories: string[];
   tags: Record<string, string[]>;
+  display_dates: boolean;
 }
 
 export interface IUpdateEvent extends Partial<ICreateEvent> {}

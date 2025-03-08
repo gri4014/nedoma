@@ -9,18 +9,18 @@ const priceRangeSchema = z.object({
 
 export const createEventSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  short_description: z.string().min(1, 'Short description is required'),
-  long_description: z.string().min(1, 'Long description is required'),
+  short_description: z.string().min(1, 'Description is required').max(160, 'Description must be 160 characters or less'),
+  long_description: z.string().optional().default(''),
   image_urls: z.array(z.string().url()).max(8, 'Maximum 8 images allowed'),
   links: z.array(z.string().url()),
-  relevance_start: z.date(),
-  event_dates: z.array(z.date()).min(1, 'At least one event date is required'),
+  event_dates: z.array(z.date()).default([]),
   address: z.string().min(1, 'Address is required'),
   is_active: z.boolean(),
   is_free: z.boolean(),
   price_range: z.union([priceRangeSchema, z.null()]),
   subcategories: z.array(z.string().uuid('Invalid subcategory ID')).min(1, 'At least one subcategory is required'),
-  tags: z.record(z.array(z.string())).default({})
+  tags: z.record(z.array(z.string())).default({}),
+  display_dates: z.boolean().default(true)
 });
 
 export const updateEventSchema = createEventSchema.partial();

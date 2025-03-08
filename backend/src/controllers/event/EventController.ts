@@ -66,7 +66,8 @@ class EventController {
       const data: ICreateEvent = {
         name: fields.name || '',
         short_description: fields.short_description,
-        long_description: fields.long_description,
+        // If long_description is not provided, use short_description
+        long_description: fields.long_description || fields.short_description,
         links: (() => {
           try {
             if (!fields.links) return [];
@@ -79,7 +80,6 @@ class EventController {
             return [];
           }
         })(),
-        relevance_start: new Date(fields.relevance_start),
         event_dates: (() => {
           try {
             if (!fields.event_dates) return [];
@@ -92,6 +92,7 @@ class EventController {
             return [];
           }
         })(),
+        display_dates: fields.display_dates === 'true',
         address: fields.address,
         is_active: fields.is_active === 'true',
         is_free: fields.is_free === 'true',
@@ -334,9 +335,6 @@ class EventController {
       }
 
       // Process dates
-      if (fields.relevance_start) {
-        data.relevance_start = new Date(fields.relevance_start);
-      }
       if (fields.event_dates) {
         try {
           data.event_dates = Array.isArray(fields.event_dates) 
@@ -345,6 +343,11 @@ class EventController {
         } catch (error) {
           logger.error('Failed to parse event_dates:', error);
         }
+      }
+      
+      // Process display_dates
+      if (fields.display_dates !== undefined) {
+        data.display_dates = fields.display_dates === 'true';
       }
 
       // Process address

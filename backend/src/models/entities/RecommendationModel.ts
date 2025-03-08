@@ -22,7 +22,6 @@ export class RecommendationModel extends BaseModel<IEvent> {
     long_description: z.string(),
     image_urls: z.array(z.string()),
     links: z.array(z.string()),
-    relevance_start: z.date(),
     event_dates: z.array(z.date()),
     address: z.string(),
     is_active: z.boolean(),
@@ -32,6 +31,7 @@ export class RecommendationModel extends BaseModel<IEvent> {
       max: z.number()
     }).nullable(),
     category_id: z.string().uuid(),
+    display_dates: z.boolean(),
     created_at: z.date(),
     updated_at: z.date()
   }); // Match EventModel schema for type compatibility
@@ -223,8 +223,8 @@ export class RecommendationModel extends BaseModel<IEvent> {
       const values: any[] = [];
       let paramCount = 1;
 
-      // Show events that started within last 3 days or haven't started yet
-      conditions.push(`e.relevance_start >= (CURRENT_TIMESTAMP - INTERVAL '3 days')`);
+      // Show events that were created within last 30 days
+      conditions.push(`e.created_at >= (CURRENT_TIMESTAMP - INTERVAL '30 days')`);
       
       // Add condition for selected subcategories
       conditions.push(`subcategory_id = ANY($${paramCount})`);
@@ -300,7 +300,7 @@ export class RecommendationModel extends BaseModel<IEvent> {
         LEFT JOIN event_tags et ON e.id = et.event_id
         CROSS JOIN UNNEST(e.subcategories) as subcategory_id
         WHERE ${conditions.join(' AND ')}
-        ORDER BY e.relevance_start DESC
+        ORDER BY e.created_at DESC
         ${filters.limit ? `LIMIT ${filters.limit}` : ''}
         ${filters.page && filters.limit ? `OFFSET ${(filters.page - 1) * filters.limit}` : 
           filters.offset !== undefined ? `OFFSET ${filters.offset}` : ''}
@@ -478,9 +478,9 @@ export class RecommendationModel extends BaseModel<IEvent> {
           if (Math.abs(scoreDiff) > 0.001) { // Use small epsilon for float comparison
             return scoreDiff;
           }
-          // Secondary sort by relevance date for equal scores
-          return new Date(b.event.relevance_start).getTime() - 
-                 new Date(a.event.relevance_start).getTime();
+          // Secondary sort by creation date for equal scores
+          return new Date(b.event.created_at).getTime() - 
+                 new Date(a.event.created_at).getTime();
         });
       });
 

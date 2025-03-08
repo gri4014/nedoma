@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { GlobalStyles } from './styles/globalStyles';
 import ThemeProvider from './providers/ThemeProvider';
-import { DashboardLayout } from './components/layout/DashboardLayout';
+import AdminLayout from './components/layout/AdminLayout';
 import LoginForm from './components/auth/LoginForm';
 import AdminEventsPage from './pages/AdminEventsPage';
 import AdminEventFormPage from './pages/AdminEventFormPage';
@@ -26,11 +26,12 @@ const AppRoutes = () => {
       <Route path="/admin/*" element={
         isAuthenticated ? (
           <Routes>
-            <Route element={<DashboardLayout />}>
+            <Route element={<AdminLayout />}>
               <Route path="events" element={<AdminEventsPage />} />
               <Route path="events/create" element={<AdminEventFormPage />} />
               <Route path="events/edit/:eventId" element={<AdminEventFormPage />} />
               <Route path="tags" element={<AdminTagsPage />} />
+              <Route path="*" element={<Navigate to="/admin/events" replace />} />
             </Route>
           </Routes>
         ) : (

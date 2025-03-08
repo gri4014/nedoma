@@ -58,6 +58,10 @@ const theme = {
     md: '768px',
     lg: '992px',
     xl: '1200px'
+  },
+  zIndex: {
+    bottomBar: 100,
+    modal: 1000
   }
 };
 

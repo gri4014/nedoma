@@ -4,30 +4,65 @@ import { useApi } from '../hooks/useApi';
 import { Button } from '../components/common/Button';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import TagForm from '../components/tags/TagForm';
-import { ITag, CreateTagInput, ApiResponse } from '../types/tag';
+import { ITag, ApiResponse } from '../types/tag';
+import AdminLogo from '../components/common/AdminLogo';
+import AdminBottomTabBar from '../components/common/AdminBottomTabBar';
 
 const Container = styled.div`
   min-height: 100vh;
   background-color: ${({ theme }) => theme.colors.background.default};
+  padding-top: ${({ theme }) => theme.spacing.xl};
+  padding-bottom: calc(83px + env(safe-area-inset-bottom)); /* For bottom bar */
 `;
 
 const Header = styled.header`
-  background-color: ${({ theme }) => theme.colors.background.paper};
-  border-bottom: 1px solid ${({ theme }) => theme.colors.border};
-  padding: ${({ theme }) => theme.spacing.md};
+  padding: 0 0 ${({ theme }) => theme.spacing.xl};
 `;
 
 const HeaderContent = styled.div`
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
+  padding: 0 ${({ theme }) => theme.spacing.lg};
+
+  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
+    max-width: 1200px;
+    padding: 0 ${({ theme }) => theme.spacing.xl};
+  }
+`;
+
+const TopSection = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: ${({ theme }) => theme.spacing.lg};
+
+  h1 {
+    font-size: ${({ theme }) => theme.typography.fontSizes.xl};
+    margin: 0;
+  }
 `;
 
 const Content = styled.main`
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
+  padding: 0 ${({ theme }) => theme.spacing.lg};
+
+  @media (min-width: ${({ theme }) => theme.breakpoints.md}) {
+    max-width: 1200px;
+    padding: 0 ${({ theme }) => theme.spacing.xl};
+  }
+`;
+
+const LoadingContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+`;
+
+const ErrorMessage = styled.div`
+  text-align: center;
+  color: ${({ theme }) => theme.colors.error};
   padding: ${({ theme }) => theme.spacing.xl};
 `;
 
@@ -42,9 +77,14 @@ const TagItem = styled.div`
   justify-content: space-between;
   align-items: center;
   padding: ${({ theme }) => theme.spacing.md};
-  background-color: ${({ theme }) => theme.colors.background.paper};
+  background: #000000;
   border-radius: ${({ theme }) => theme.borderRadius.md};
-  border: 1px solid ${({ theme }) => theme.colors.border};
+
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: ${({ theme }) => theme.spacing.md};
+  }
 `;
 
 const TagInfo = styled.div`
@@ -56,29 +96,22 @@ const TagInfo = styled.div`
 const TagName = styled.div`
   font-size: ${({ theme }) => theme.typography.fontSizes.md};
   font-weight: ${({ theme }) => theme.typography.fontWeights.medium};
+  color: #FFFFFF;
 `;
 
 const TagDetails = styled.div`
-  color: ${({ theme }) => theme.colors.text.secondary};
+  color: rgba(255, 255, 255, 0.7);
   font-size: ${({ theme }) => theme.typography.fontSizes.sm};
 `;
 
 const ButtonGroup = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.sm};
-`;
 
-const LoadingContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 400px;
-`;
-
-const ErrorMessage = styled.div`
-  text-align: center;
-  color: ${({ theme }) => theme.colors.error};
-  padding: ${({ theme }) => theme.spacing.xl};
+  @media (max-width: ${({ theme }) => theme.breakpoints.sm}) {
+    width: 100%;
+    justify-content: flex-end;
+  }
 `;
 
 interface Subcategory {
@@ -154,94 +187,106 @@ const AdminTagsPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <Container>
-        <LoadingContainer>
-          <LoadingSpinner size="lg" />
-        </LoadingContainer>
-      </Container>
+      <>
+        <Container>
+          <AdminLogo />
+          <LoadingContainer>
+            <LoadingSpinner size="lg" />
+          </LoadingContainer>
+        </Container>
+        <AdminBottomTabBar />
+      </>
     );
   }
 
   if (error) {
     return (
-      <Container>
-        <Content>
+      <>
+        <Container>
+          <AdminLogo />
           <ErrorMessage>{error}</ErrorMessage>
-        </Content>
-      </Container>
+        </Container>
+        <AdminBottomTabBar />
+      </>
     );
   }
 
   return (
-    <Container>
-      <Header>
-        <HeaderContent>
-          <h1>Управление тегами</h1>
-          <Button onClick={() => {
-            setSelectedTag(null);
-            setIsFormOpen(true);
-          }}>
-            Создать тег
-          </Button>
-        </HeaderContent>
-      </Header>
-      
-      <Content>
-        {isFormOpen ? (
-          <TagForm
-            initialData={selectedTag ? {
-              name: selectedTag.name,
-              possible_values: selectedTag.possible_values,
-              subcategories: selectedTag.subcategories || [],
-              is_active: selectedTag.is_active,
-            } : undefined}
-            onSubmit={async (data) => {
-              try {
-                if (selectedTag) {
-                  await api.put(`/admin/tags/${selectedTag.id}`, data);
-                } else {
-                  await api.post('/admin/tags', data);
+    <>
+      <Container>
+        <AdminLogo />
+        <Header>
+          <HeaderContent>
+            <TopSection>
+              <h1>Управление тегами</h1>
+              <Button onClick={() => {
+                setSelectedTag(null);
+                setIsFormOpen(true);
+              }}>
+                Создать тег
+              </Button>
+            </TopSection>
+          </HeaderContent>
+        </Header>
+        
+        <Content>
+          {isFormOpen ? (
+            <TagForm
+              initialData={selectedTag ? {
+                name: selectedTag.name,
+                possible_values: selectedTag.possible_values,
+                subcategories: selectedTag.subcategories || [],
+                is_active: selectedTag.is_active,
+              } : undefined}
+              onSubmit={async (data) => {
+                try {
+                  if (selectedTag) {
+                    await api.put(`/admin/tags/${selectedTag.id}`, data);
+                  } else {
+                    await api.post('/admin/tags', data);
+                  }
+                  await fetchTags();
+                  setIsFormOpen(false);
+                } catch (err) {
+                  console.error('Error saving tag:', err);
+                  throw new Error('Failed to save tag. Please try again later.');
                 }
-                await fetchTags();
-                setIsFormOpen(false);
-              } catch (err) {
-                console.error('Error saving tag:', err);
-                throw new Error('Failed to save tag. Please try again later.');
-              }
-            }}
-            onCancel={() => setIsFormOpen(false)}
-          />
-        ) : (
-          <TagList>
-            {tags.map(tag => (
-              <TagItem key={tag.id}>
-                <TagInfo>
-                  <TagName>{tag.name}</TagName>
-                  {Array.isArray(tag.possible_values) && (
-                    <TagDetails>
-                      Значения: {tag.possible_values.join(', ')}
-                    </TagDetails>
-                  )}
-                  {Array.isArray(tag.subcategories) && tag.subcategories.length > 0 && (
-                    <TagDetails>
-                      Подкатегории: {getSubcategoryNames(tag.subcategories)}
-                    </TagDetails>
-                  )}
-                </TagInfo>
-                <ButtonGroup>
-                  <Button onClick={() => handleEdit(tag)} $variant="secondary">
-                    Редактировать
-                  </Button>
-                  <Button onClick={() => handleDelete(tag.id)} $variant="danger">
-                    Удалить
-                  </Button>
-                </ButtonGroup>
-              </TagItem>
-            ))}
-          </TagList>
-        )}
-      </Content>
-    </Container>
+              }}
+              onCancel={() => setIsFormOpen(false)}
+            />
+          ) : (
+            <TagList>
+              {tags.map(tag => (
+                <TagItem key={tag.id}>
+                  <TagInfo>
+                    <TagName>{tag.name}</TagName>
+                    {Array.isArray(tag.possible_values) && (
+                      <TagDetails>
+                        Значения: {tag.possible_values.join(', ')}
+                      </TagDetails>
+                    )}
+                    {Array.isArray(tag.subcategories) && tag.subcategories.length > 0 && (
+                      <TagDetails>
+                        Подкатегории: {getSubcategoryNames(tag.subcategories)}
+                      </TagDetails>
+                    )}
+                  </TagInfo>
+                  <ButtonGroup>
+                    <Button onClick={() => handleEdit(tag)} $variant="secondary">
+                      Редактировать
+                    </Button>
+                    <Button onClick={() => handleDelete(tag.id)} $variant="danger">
+                      Удалить
+                    </Button>
+                  </ButtonGroup>
+                </TagItem>
+              ))}
+            </TagList>
+          )}
+        </Content>
+      </Container>
+      <AdminBottomTabBar />
+    </>
   );
 };
 

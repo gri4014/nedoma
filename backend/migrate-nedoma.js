@@ -3,8 +3,8 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const config = {
-  user: process.env.POSTGRES_USER || 'grigorii',
-  password: process.env.POSTGRES_PASSWORD || 'your_password',
+  user: process.env.POSTGRES_USER || 'postgres',
+  password: process.env.POSTGRES_PASSWORD || 'postgres',
   host: process.env.POSTGRES_HOST || 'localhost',
   port: parseInt(process.env.POSTGRES_PORT || '5432'),
   database: process.env.POSTGRES_DB || 'nedoma_copy',

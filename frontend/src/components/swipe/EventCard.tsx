@@ -166,16 +166,18 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
                 ? `от ${event.price_range.min} руб` 
                 : "Цена не указана"}
           </PriceTag>
-          <DatesRow>
-            {event?.event_dates?.slice(0, 2).map((date, index) => (
-              <DateButton key={index}>
-                {new Date(date).toLocaleDateString('ru-RU', {
-                  day: 'numeric',
-                  month: 'short'
-                })}
-              </DateButton>
-            ))}
-          </DatesRow>
+          {event?.display_dates && event?.event_dates?.length > 0 && (
+            <DatesRow>
+              {event.event_dates.slice(0, 2).map((date, index) => (
+                <DateButton key={index}>
+                  {new Date(date).toLocaleDateString('ru-RU', {
+                    day: 'numeric',
+                    month: 'short'
+                  })}
+                </DateButton>
+              ))}
+            </DatesRow>
+          )}
           <Title>{event?.name || 'Загрузка...'}</Title>
         </ContentOverlay>
       </ImageSection>

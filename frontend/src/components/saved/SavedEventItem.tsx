@@ -188,16 +188,18 @@ export const SavedEventItem: React.FC<SavedEventItemProps> = ({ event, onRemove 
             <RemoveButton onClick={() => onRemove(event.id)}>×</RemoveButton>
           </Header>
           <MobileTopDetails>
-            <DateContainer>
-              {event.event_dates?.map((date, index) => (
-                <DateBadge key={index}>
-                  {new Date(date).toLocaleDateString('ru-RU', {
-                    day: 'numeric',
-                    month: 'short'
-                  })}
-                </DateBadge>
-              ))}
-            </DateContainer>
+            {event.display_dates && event.event_dates?.length > 0 && (
+              <DateContainer>
+                {event.event_dates.map((date, index) => (
+                  <DateBadge key={index}>
+                    {new Date(date).toLocaleDateString('ru-RU', {
+                      day: 'numeric',
+                      month: 'short'
+                    })}
+                  </DateBadge>
+                ))}
+              </DateContainer>
+            )}
             <Price>
               {event.is_free 
                 ? "Бесплатно" 
@@ -207,16 +209,18 @@ export const SavedEventItem: React.FC<SavedEventItemProps> = ({ event, onRemove 
             </Price>
           </MobileTopDetails>
           <Details>
-            <DateContainer>
-              {event.event_dates?.map((date, index) => (
-                <DateBadge key={index}>
-                  {new Date(date).toLocaleDateString('ru-RU', {
-                    day: 'numeric',
-                    month: 'short'
-                  })}
-                </DateBadge>
-              ))}
-            </DateContainer>
+            {event.display_dates && event.event_dates?.length > 0 && (
+              <DateContainer>
+                {event.event_dates.map((date, index) => (
+                  <DateBadge key={index}>
+                    {new Date(date).toLocaleDateString('ru-RU', {
+                      day: 'numeric',
+                      month: 'short'
+                    })}
+                  </DateBadge>
+                ))}
+              </DateContainer>
+            )}
             <Price>
               {event.is_free 
                 ? "Бесплатно" 

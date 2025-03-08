@@ -11,11 +11,10 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
   protected schema = z.object({
     id: z.string().uuid(),
     name: z.string().min(1),
-    short_description: z.string().min(1),
-    long_description: z.string().min(1),
+    short_description: z.string().min(1).max(160),
+    long_description: z.string().optional().default(''),
     image_urls: z.array(z.string().url()),
     links: z.array(z.string().url()),
-    relevance_start: z.date(),
     event_dates: z.array(z.date()),
     address: z.string().min(1),
     is_active: z.boolean(),
@@ -25,6 +24,7 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
       max: z.number()
     }).nullable(),
     subcategories: z.array(z.string().uuid()),
+    display_dates: z.boolean(),
     created_at: z.date(),
     updated_at: z.date()
   });
@@ -86,7 +86,6 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
   private transformDates(row: any): any {
     return {
       ...row,
-      relevance_start: new Date(row.relevance_start),
       event_dates: Array.isArray(row.event_dates) ? row.event_dates.map((date: string) => new Date(date)) : [],
       created_at: new Date(row.created_at),
       updated_at: new Date(row.updated_at)
@@ -309,13 +308,13 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
       }
 
       if (filters.startDate) {
-        conditions.push(`e.relevance_start >= $${paramCount}`);
+        conditions.push(`e.created_at >= $${paramCount}`);
         values.push(filters.startDate);
         paramCount++;
       }
 
       if (filters.endDate) {
-        conditions.push(`e.relevance_start <= $${paramCount}`);
+        conditions.push(`e.created_at <= $${paramCount}`);
         values.push(filters.endDate);
         paramCount++;
       }
@@ -359,7 +358,7 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
         LEFT JOIN event_tags et ON e.id = et.event_id
         ${conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''}
         GROUP BY e.id
-        ORDER BY e.relevance_start ASC
+        ORDER BY e.created_at DESC
         LIMIT $${limitParam}
         OFFSET $${offsetParam}
       `;
@@ -409,7 +408,7 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
         JOIN categories c ON c.id = ANY(e.subcategories)
         LEFT JOIN event_tags et ON e.id = et.event_id
         GROUP BY e.id
-        ORDER BY e.relevance_start ASC
+        ORDER BY e.created_at DESC
       `;
 
       const result = await this.db.query(query);

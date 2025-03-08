@@ -53,7 +53,6 @@ interface FormErrors {
   long_description?: string;
   image_urls?: string;
   event_dates?: string;
-  relevance_start?: string;
   address?: string;
   subcategories?: string;
   tags?: string;
@@ -66,7 +65,6 @@ const defaultFormData: CreateEventInput = {
   long_description: '',
   image_urls: [],
   links: [],
-  relevance_start: new Date(),
   event_dates: [],
   address: '',
   is_active: true,
@@ -74,6 +72,7 @@ const defaultFormData: CreateEventInput = {
   price_range: { min: 0, max: 0 },
   subcategories: [],
   tags: {},
+  display_dates: true,
 };
 
 const EventForm: React.FC<EventFormProps> = ({
@@ -89,12 +88,12 @@ const EventForm: React.FC<EventFormProps> = ({
     return {
       ...defaultFormData,
       ...initialData,
-      relevance_start: initialData.relevance_start ? new Date(initialData.relevance_start) : new Date(),
       event_dates: initialData.event_dates?.map(date => new Date(date)) || [],
       price_range: initialData.price_range || { min: 0, max: 0 },
       subcategories: initialData.subcategories || [],
       tags: initialData.tags || {},
       image_urls: initialData.image_urls || [],
+      display_dates: initialData.display_dates !== undefined ? initialData.display_dates : true,
     };
   });
 
@@ -112,17 +111,12 @@ const EventForm: React.FC<EventFormProps> = ({
       newErrors.short_description = 'Введите краткое описание';
     }
 
-    if (!formData.long_description?.trim()) {
-      newErrors.long_description = 'Введите полное описание';
-    }
+    // long_description is now optional, so no validation needed
 
     if (!formData.image_urls?.length) {
       newErrors.image_urls = 'Добавьте хотя бы одно изображение';
     }
 
-    if (!formData.relevance_start) {
-      newErrors.relevance_start = 'Укажите дату конца релевантности';
-    }
 
     if (!formData.address?.trim()) {
       newErrors.address = 'Введите адрес';
@@ -157,10 +151,13 @@ const EventForm: React.FC<EventFormProps> = ({
       // Add basic fields
       submitData.append('name', formData.name);
       submitData.append('short_description', formData.short_description);
-      submitData.append('long_description', formData.long_description);
+      // Only include long_description if it exists
+      if (formData.long_description) {
+        submitData.append('long_description', formData.long_description);
+      }
       submitData.append('links', JSON.stringify(formData.links));
-      submitData.append('relevance_start', formData.relevance_start.toISOString());
       submitData.append('event_dates', JSON.stringify(formData.event_dates.map(date => date.toISOString())));
+      submitData.append('display_dates', String(formData.display_dates));
       submitData.append('address', formData.address);
       submitData.append('is_active', String(formData.is_active));
       submitData.append('is_free', String(formData.is_free));
@@ -205,22 +202,24 @@ const EventForm: React.FC<EventFormProps> = ({
           required
         />
 
-        <Input
-          label="Краткое описание"
-          value={formData.short_description}
-          onChange={(e) => setFormData(prev => ({ ...prev, short_description: e.target.value }))}
-          error={errors.short_description}
-          required
-        />
-
-        <TextArea
-          label="Полное описание"
-          value={formData.long_description}
-          onChange={(e) => setFormData(prev => ({ ...prev, long_description: e.target.value }))}
-          rows={5}
-          error={errors.long_description}
-          required
-        />
+        <div>
+          <TextArea
+            label="Описание"
+            value={formData.short_description}
+            onChange={(e) => setFormData(prev => ({ ...prev, short_description: e.target.value.slice(0, 160) }))}
+            rows={5}
+            error={errors.short_description}
+            required
+          />
+          <div style={{ 
+            textAlign: 'right', 
+            fontSize: '12px', 
+            marginTop: '4px',
+            color: formData.short_description.length > 150 ? '#ff6b6b' : '#999'
+          }}>
+            {formData.short_description.length}/160
+          </div>
+        </div>
       </FormSection>
 
       <FormSection>
@@ -237,9 +236,9 @@ const EventForm: React.FC<EventFormProps> = ({
           label="Даты проведения"
           dates={formData.event_dates}
           onChange={(dates) => setFormData(prev => ({ ...prev, event_dates: dates }))}
-          relevanceStart={formData.relevance_start}
-          onRelevanceStartChange={(date) => setFormData(prev => ({ ...prev, relevance_start: date }))}
-          error={errors.event_dates || errors.relevance_start}
+          displayDates={formData.display_dates}
+          onDisplayDatesChange={(display) => setFormData(prev => ({ ...prev, display_dates: display }))}
+          error={errors.event_dates}
         />
 
         <Input

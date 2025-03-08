@@ -55,7 +55,7 @@ async function testRecommendationScoring(telegramId: string) {
         eventId: e.event.id,
         tagMatchScore: e.score.tag_match_score,
         hasMatchingTags: e.score.has_matching_tags,
-        relevanceStart: e.event.relevance_start
+        createdAt: e.event.created_at
       }))
     });
   });

@@ -67,8 +67,8 @@ interface DateTimeFieldProps {
   dates: Date[];
   onChange: (dates: Date[]) => void;
   error?: string;
-  relevanceStart?: Date;
-  onRelevanceStartChange?: (date: Date) => void;
+  displayDates: boolean;
+  onDisplayDatesChange: (display: boolean) => void;
 }
 
 const DateTimeField: React.FC<DateTimeFieldProps> = ({
@@ -76,8 +76,8 @@ const DateTimeField: React.FC<DateTimeFieldProps> = ({
   dates,
   onChange,
   error,
-  relevanceStart,
-  onRelevanceStartChange,
+  displayDates,
+  onDisplayDatesChange,
 }) => {
   const handleDateChange = (index: number, value: string) => {
     const date = new Date(value);
@@ -98,48 +98,49 @@ const DateTimeField: React.FC<DateTimeFieldProps> = ({
     onChange(newDates);
   };
 
-  const handleRelevanceStartChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (onRelevanceStartChange) {
-      const date = new Date(e.target.value);
-      if (!isNaN(date.getTime())) {
-        onRelevanceStartChange(date);
-      }
-    }
+  const handleDisplayDatesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    onDisplayDatesChange(e.target.checked);
   };
 
   return (
     <Container>
       <Section>
-        <Label>Дата конца релевантности</Label>
-        <Input
-          type="datetime-local"
-          value={relevanceStart ? format(relevanceStart, "yyyy-MM-dd'T'HH:mm") : ''}
-          onChange={handleRelevanceStartChange}
-          required
-        />
-      </Section>
-
-      <Section>
-        <Label>{label}</Label>
-        {dates.map((date, index) => (
-          <DateInputContainer key={index}>
-            <Input
-              type="datetime-local"
-              value={format(date, "yyyy-MM-dd'T'HH:mm")}
-              onChange={(e) => handleDateChange(index, e.target.value)}
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+          <Label style={{ marginRight: '10px', marginBottom: 0 }}>{label}</Label>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <input 
+              type="checkbox" 
+              checked={displayDates} 
+              onChange={handleDisplayDatesChange}
+              style={{ marginRight: '5px' }}
             />
-            <DeleteButton onClick={() => handleDeleteDate(index)} type="button">
-              <i className="fas fa-times" />
-            </DeleteButton>
-          </DateInputContainer>
-        ))}
-        <AddButton
-          type="button"
-          onClick={handleAddDate}
-          $variant="secondary"
-        >
-          <i className="fas fa-plus" /> Добавить дату
-        </AddButton>
+            <span>Показывать даты: {displayDates ? 'Да' : 'Нет'}</span>
+          </div>
+        </div>
+        
+        {displayDates && (
+          <>
+            {dates.map((date, index) => (
+              <DateInputContainer key={index}>
+                <Input
+                  type="datetime-local"
+                  value={format(date, "yyyy-MM-dd'T'HH:mm")}
+                  onChange={(e) => handleDateChange(index, e.target.value)}
+                />
+                <DeleteButton onClick={() => handleDeleteDate(index)} type="button">
+                  <i className="fas fa-times" />
+                </DeleteButton>
+              </DateInputContainer>
+            ))}
+            <AddButton
+              type="button"
+              onClick={handleAddDate}
+              $variant="secondary"
+            >
+              <i className="fas fa-plus" /> Добавить дату
+            </AddButton>
+          </>
+        )}
       </Section>
 
       {error && <ErrorText>{error}</ErrorText>}

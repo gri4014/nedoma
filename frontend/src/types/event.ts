@@ -11,10 +11,9 @@ export interface EventTag {
 export interface BaseEvent {
   name: string;
   short_description: string;
-  long_description: string;
+  long_description?: string;
   image_urls: (string | File)[];
   links: string[];
-  relevance_start: Date;
   event_dates: Date[];
   subcategories: string[];
   address: string;
@@ -22,6 +21,7 @@ export interface BaseEvent {
   is_free: boolean;
   price_range: PriceRange | null;
   tags: Record<string, string[]>;
+  display_dates: boolean;
 }
 
 export type CreateEventInput = BaseEvent;
