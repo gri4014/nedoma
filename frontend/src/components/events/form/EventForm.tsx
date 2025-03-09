@@ -178,14 +178,27 @@ const EventForm: React.FC<EventFormProps> = ({
         }
       }
 
-      // Add images
+      // Handle images
+      const files: File[] = [];
+      const existingUrls: string[] = [];
+
       formData.image_urls.forEach(image => {
         if (image instanceof File) {
-          submitData.append('images', image);
-        } else {
-          submitData.append('existing_images', image);
+          files.push(image);
+        } else if (typeof image === 'string' && (image.startsWith('http://') || image.startsWith('https://'))) {
+          existingUrls.push(image);
         }
       });
+
+      // Append files for upload
+      files.forEach(file => {
+        submitData.append('images', file);
+      });
+      
+      // Send existing image URLs as JSON array
+      if (existingUrls.length > 0) {
+        submitData.append('image_urls', JSON.stringify(existingUrls));
+      }
 
       await onSubmit(submitData);
     } catch (error) {
@@ -260,11 +273,17 @@ const EventForm: React.FC<EventFormProps> = ({
         <Input
           label="Ссылка (необязательно)"
           value={formData.links[0] || ''}
-          onChange={(e) => setFormData(prev => ({ 
-            ...prev, 
-            links: e.target.value ? [e.target.value] : [] 
-          }))}
-          placeholder="https://example.com"
+          onChange={(e) => {
+            let url = e.target.value.trim();
+            if (url && !url.match(/^https?:\/\//)) {
+              url = 'https://' + url;
+            }
+            setFormData(prev => ({ 
+              ...prev, 
+              links: url ? [url] : [] 
+            }));
+          }}
+          placeholder="example.com"
         />
       </FormSection>
 

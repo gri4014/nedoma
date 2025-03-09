@@ -49,9 +49,10 @@ class EventController {
   createEvent = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
     let imageUrls: string[] = [];
     try {
-      // Get form fields from formidable
+      // Get form fields and files
       const fields = req.body;
       const files = (req as any).files?.images || [];
+      const existingImageUrls = fields.image_urls ? JSON.parse(fields.image_urls) : [];
 
       // Check image limit
       if (files.length > 8) {
@@ -127,10 +128,15 @@ class EventController {
         image_urls: []
       };
 
-      // Process images first
+      // Initialize image URLs with any existing ones
+      imageUrls = existingImageUrls;
+      data.image_urls = imageUrls;
+
+      // Add any newly uploaded images
       if (files.length > 0) {
         try {
-          imageUrls = await this.imageStorageService.saveImages(files);
+          const newImageUrls = await this.imageStorageService.saveImages(files);
+          imageUrls = [...imageUrls, ...newImageUrls];
           data.image_urls = imageUrls;
         } catch (error) {
           logger.error('Failed to process uploaded images:', error);
