@@ -25,3 +25,4 @@ Thumbs.db
 
 # Allow SQL backups
 !backups/*.sql
+docker/postgres-data/
