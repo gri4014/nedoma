@@ -25,9 +25,9 @@ const ContentContainer = styled.div`
   align-items: flex-end;
   justify-content: center;
   padding: 0 2px; /* Bare minimum side padding */
-  padding-bottom: 84px; /* Space for bottom tab bar - exactly matching its height */
+  padding-bottom: 70px; /* Reduced space for bottom tab bar */
   min-height: 0; /* Required for proper flex behavior with scrolling */
-  margin-top: 75px; /* Space after fixed logo (25px logo padding + 25px padding bottom + 25px spacing) */
+  margin-top: 60px; /* Reduced space after fixed logo */
 `;
 
 const DeckContainer = styled.div`
@@ -37,7 +37,8 @@ const DeckContainer = styled.div`
   display: flex;
   align-items: flex-end;
   margin-top: auto; /* Push everything to the bottom */
-  padding-bottom: 20px; /* Small padding from bottom tab bar */
+  padding-bottom: 10px; /* Reduced padding from bottom tab bar */
+  padding-top: 15px; /* Add spacing to move card down */
 `;
 
 const SavedContainer = styled.div`
