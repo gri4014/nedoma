@@ -274,7 +274,9 @@ export const AdminEventItem: React.FC<AdminEventItemProps> = ({ event, onDelete,
             <Description>{event.short_description}</Description>
             <TagsContainer>
               {Object.entries(event?.tags || {}).map(([tagId, values]) => (
-                <TagButton key={`${event.id}-${tagId}`}>{values[0]}</TagButton>
+                values.map((value, valueIndex) => (
+                  <TagButton key={`${event.id}-${tagId}-${valueIndex}`}>{value}</TagButton>
+                ))
               ))}
             </TagsContainer>
           </Details>
@@ -284,7 +286,9 @@ export const AdminEventItem: React.FC<AdminEventItemProps> = ({ event, onDelete,
         <Description>{event.short_description}</Description>
         <TagsContainer>
           {Object.entries(event?.tags || {}).map(([tagId, values]) => (
-            <TagButton key={`${event.id}-${tagId}`}>{values[0]}</TagButton>
+            values.map((value, valueIndex) => (
+              <TagButton key={`${event.id}-${tagId}-${valueIndex}`}>{value}</TagButton>
+            ))
           ))}
         </TagsContainer>
       </BottomSection>

@@ -219,9 +219,11 @@ export const EventCard: React.FC<EventCardProps> = ({ event }) => {
         <ContentStack>
           <Description>{event?.short_description || 'Загрузка описания...'}</Description>
           <TagsContainer>
-            {Object.entries(event?.tags || {}).map(([tagId, values]) => (
-              <TagButton key={`${event.id}-${tagId}`}>{values[0]}</TagButton>
-            ))}
+{Object.entries(event?.tags || {}).map(([tagId, values]) => (
+  values.map((value, valueIndex) => (
+    <TagButton key={`${event.id}-${tagId}-${valueIndex}`}>{value}</TagButton>
+  ))
+))}
           </TagsContainer>
         </ContentStack>
       </ContentSection>

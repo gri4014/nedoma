@@ -1,7 +1,6 @@
 BEGIN;
 
 -- Create indexes for events table
-CREATE INDEX IF NOT EXISTS idx_events_relevance_start ON events(relevance_start);
 CREATE INDEX IF NOT EXISTS idx_events_is_active ON events(is_active);
 CREATE INDEX IF NOT EXISTS idx_events_is_free ON events(is_free);
 

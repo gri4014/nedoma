@@ -252,9 +252,11 @@ export const SavedEventItem: React.FC<SavedEventItemProps> = ({ event, onRemove 
             </Price>
             <Description>{event.short_description}</Description>
             <TagsContainer>
-              {Object.entries(event?.tags || {}).map(([tagId, values]) => (
-                <TagButton key={`${event.id}-${tagId}`}>{values[0]}</TagButton>
-              ))}
+{Object.entries(event?.tags || {}).map(([tagId, values]) => (
+  values.map((value, valueIndex) => (
+    <TagButton key={`${event.id}-${tagId}-${valueIndex}`}>{value}</TagButton>
+  ))
+))}
             </TagsContainer>
           </Details>
         </ContentContainer>
@@ -262,9 +264,11 @@ export const SavedEventItem: React.FC<SavedEventItemProps> = ({ event, onRemove 
       <BottomSection>
         <Description>{event.short_description}</Description>
         <TagsContainer>
-          {Object.entries(event?.tags || {}).map(([tagId, values]) => (
-            <TagButton key={`${event.id}-${tagId}`}>{values[0]}</TagButton>
-          ))}
+{Object.entries(event?.tags || {}).map(([tagId, values]) => (
+  values.map((value, valueIndex) => (
+    <TagButton key={`${event.id}-${tagId}-${valueIndex}`}>{value}</TagButton>
+  ))
+))}
         </TagsContainer>
       </BottomSection>
     </ItemContainer>

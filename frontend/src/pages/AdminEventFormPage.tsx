@@ -88,18 +88,17 @@ const AdminEventFormPage: React.FC = () => {
 
   const handleSubmit = async (formData: FormData) => {
     try {
+      const config = {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        transformRequest: (data: any) => data, // Prevent axios from trying to transform FormData
+      };
+
       if (isEditMode) {
-        await api.put(`/admin/events/${eventId}`, formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        await api.put(`/admin/events/${eventId}`, formData, config);
       } else {
-        await api.post('/admin/events', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        });
+        await api.post('/admin/events', formData, config);
       }
       navigate('/admin/events');
     } catch (error) {

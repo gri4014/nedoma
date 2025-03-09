@@ -19,8 +19,16 @@ interface UseApiReturn {
 const defaultInstance = axios.create({
   baseURL: '/api',
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json', // Default content type
   },
+  transformRequest: [(data, headers) => {
+    // Don't override Content-Type if it's already set (e.g., for FormData)
+    if (data instanceof FormData) {
+      delete headers['Content-Type']; // Let the browser set the content type with boundary
+      return data;
+    }
+    return JSON.stringify(data);
+  }],
 });
 
 // Add request interceptor for auth token

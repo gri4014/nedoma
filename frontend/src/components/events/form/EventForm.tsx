@@ -148,26 +148,34 @@ const EventForm: React.FC<EventFormProps> = ({
       // Create FormData object
       const submitData = new FormData();
 
-      // Add basic fields
+      // Basic string fields
       submitData.append('name', formData.name);
       submitData.append('short_description', formData.short_description);
-      // Only include long_description if it exists
       if (formData.long_description) {
         submitData.append('long_description', formData.long_description);
       }
-      submitData.append('links', JSON.stringify(formData.links));
-      submitData.append('event_dates', JSON.stringify(formData.event_dates.map(date => date.toISOString())));
-      submitData.append('display_dates', String(formData.display_dates));
       submitData.append('address', formData.address);
+      submitData.append('display_dates', String(formData.display_dates));
       submitData.append('is_active', String(formData.is_active));
       submitData.append('is_free', String(formData.is_free));
-      submitData.append('subcategories', JSON.stringify(formData.subcategories));
+
+      // Ensure proper JSON stringification for arrays and objects
+      submitData.append('links', JSON.stringify(formData.links || []));
+      submitData.append('event_dates', JSON.stringify(
+        formData.event_dates.map(date => date instanceof Date ? date.toISOString() : date)
+      ));
+      submitData.append('subcategories', JSON.stringify(formData.subcategories || []));
       submitData.append('tags', JSON.stringify(formData.tags || {}));
 
-      // Add price range if not free
+      // Price range validation and appending
       if (!formData.is_free && formData.price_range) {
-        submitData.append('price_min', String(formData.price_range.min));
-        submitData.append('price_max', String(formData.price_range.max));
+        const { min, max } = formData.price_range;
+        if (min >= 0 && max >= min) {
+          submitData.append('price_min', String(min));
+          submitData.append('price_max', String(max));
+        } else {
+          throw new Error('Некорректный диапазон цен');
+        }
       }
 
       // Add images
