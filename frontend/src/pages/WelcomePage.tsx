@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import api from '../services/api';
+import { initTelegram, isTelegramWebApp } from '../utils/telegram';
 
 const PageContainer = styled.div`
   width: 100%;
@@ -92,6 +93,17 @@ const WelcomePage = () => {
 
   useEffect(() => {
     const checkExistingToken = async () => {
+      // Check if running in Telegram and get user ID
+      if (isTelegramWebApp()) {
+        const telegramId = initTelegram();
+        if (telegramId) {
+          setTelegramId(telegramId);
+          // Auto-continue if we have a Telegram ID
+          handleContinue();
+          return;
+        }
+      }
+      
       const token = localStorage.getItem('token');
       if (token) {
         try {
@@ -214,22 +226,41 @@ const WelcomePage = () => {
     <PageContainer>
       <ContentContainer>
       <Title>Добро пожаловать в NEDOMA</Title>
-      <Input
-        type="text"
-        placeholder="Введите ваш Telegram ID"
-        value={telegramId}
-        onChange={handleInputChange}
-        onKeyPress={handleKeyPress}
-        disabled={isLoading}
-      />
-      {error && <ErrorMessage>{error}</ErrorMessage>}
-      <ContinueButton
-        onClick={handleContinue}
-        disabled={!isValidTelegramId(telegramId) || isLoading}
-        $isValid={isValidTelegramId(telegramId) && !isLoading}
-      >
-        Продолжить
-      </ContinueButton>
+      {!isTelegramWebApp() && (
+        <>
+          <Input
+            type="text"
+            placeholder="Введите ваш Telegram ID"
+            value={telegramId}
+            onChange={handleInputChange}
+            onKeyPress={handleKeyPress}
+            disabled={isLoading}
+          />
+          {error && <ErrorMessage>{error}</ErrorMessage>}
+          <ContinueButton
+            onClick={handleContinue}
+            disabled={!isValidTelegramId(telegramId) || isLoading}
+            $isValid={isValidTelegramId(telegramId) && !isLoading}
+          >
+            Продолжить
+          </ContinueButton>
+        </>
+      )}
+      {isTelegramWebApp() && isLoading && (
+        <div>Загрузка...</div>
+      )}
+      {isTelegramWebApp() && error && (
+        <>
+          <ErrorMessage>{error}</ErrorMessage>
+          <ContinueButton
+            onClick={handleContinue}
+            disabled={!isValidTelegramId(telegramId) || isLoading}
+            $isValid={isValidTelegramId(telegramId) && !isLoading}
+          >
+            Попробовать снова
+          </ContinueButton>
+        </>
+      )}
       </ContentContainer>
     </PageContainer>
   );

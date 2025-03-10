@@ -6,7 +6,8 @@
     "start": "ts-node src/app.ts",
     "dev": "nodemon --exec ts-node src/app.ts",
     "build": "tsc",
-    "script:test-user-flow": "ts-node src/scripts/test-user-flow.ts"
+    "script:test-user-flow": "ts-node src/scripts/test-user-flow.ts",
+    "bot": "node start-bot.js"
   },
   "dependencies": {
     "@types/node": "^20.11.16",
@@ -23,6 +24,7 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.3",
     "socket.io": "^4.8.1",
+    "telegraf": "^4.16.3",
     "ws": "^8.18.0",
     "zod": "^3.24.1"
   },
