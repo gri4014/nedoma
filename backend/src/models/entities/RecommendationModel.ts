@@ -275,26 +275,33 @@ export class RecommendationModel extends BaseModel<IEvent> {
 
       // First, let's create a direct SQL query that exactly matches the JavaScript filtering logic
       const query = `
-        WITH valid_events AS (
+        WITH future_event_dates AS (
+          SELECT e.id,
+                (
+                  -- Get the latest date for events with dates
+                  SELECT MAX(date_val)
+                  FROM (
+                    SELECT (unnest(e.event_dates))::timestamp as date_val
+                  ) as dates
+                ) as latest_date,
+                -- Flag to indicate if event has any dates
+                CASE 
+                  WHEN e.event_dates IS NULL OR array_length(e.event_dates, 1) = 0 
+                  THEN true 
+                  ELSE false 
+                END as has_no_dates
+          FROM events e
+        ),
+        valid_events AS (
           SELECT e.*
           FROM events e
+          JOIN future_event_dates fed ON e.id = fed.id
           WHERE 
-            -- First filter: Keep events without dates OR events with future dates
-            (
-              -- Keep events without dates
-              (e.event_dates IS NULL OR array_length(e.event_dates, 1) = 0)
-              OR
-              -- Only include events whose latest date is in the future
-              (
-                SELECT MAX(date_val) 
-                FROM (
-                  SELECT (unnest(e.event_dates))::timestamp as date_val
-                ) as dates
-              ) > CURRENT_TIMESTAMP
-            )
-            -- Second filter: Only active events
+            -- Event is either dateless OR has future dates
+            (fed.has_no_dates = true OR fed.latest_date > CURRENT_TIMESTAMP)
+            -- Only active events
             AND e.is_active = true
-            -- Third filter: Created within last 30 days
+            -- Created within last 30 days
             AND e.created_at >= (CURRENT_TIMESTAMP - INTERVAL '30 days')
         ),
         event_tags AS (
