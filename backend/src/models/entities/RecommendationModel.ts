@@ -220,12 +220,7 @@ export class RecommendationModel extends BaseModel<IEvent> {
 
       // Build query conditions
   const conditions: string[] = [
-    'e.is_active = true',
-    `(
-      array_length(e.event_dates, 1) = 0
-      OR
-      coalesce((SELECT MAX(d) FROM unnest(e.event_dates) d), null) > CURRENT_TIMESTAMP
-    )`
+    'e.is_active = true'
   ];
   const values: any[] = [];
   let paramCount = 1;
@@ -286,14 +281,37 @@ export class RecommendationModel extends BaseModel<IEvent> {
         }
       }
 
+      // First, let's create a direct SQL query that exactly matches the JavaScript filtering logic
       const query = `
-        WITH event_tags AS (
+        WITH valid_events AS (
+          SELECT e.*
+          FROM events e
+          WHERE 
+            -- First filter: Keep events without dates OR events with future dates
+            (
+              -- Keep events without dates
+              (e.event_dates IS NULL OR array_length(e.event_dates, 1) = 0)
+              OR
+              -- Only include events whose latest date is in the future
+              (
+                SELECT MAX(date_val) 
+                FROM (
+                  SELECT (unnest(e.event_dates))::timestamp as date_val
+                ) as dates
+              ) > CURRENT_TIMESTAMP
+            )
+            -- Second filter: Only active events
+            AND e.is_active = true
+            -- Third filter: Created within last 30 days
+            AND e.created_at >= (CURRENT_TIMESTAMP - INTERVAL '30 days')
+        ),
+        event_tags AS (
           SELECT 
             e.id as event_id,
             array_agg(DISTINCT jsonb_build_object('tag_id', et.tag_id, 'values', et.selected_values)) as tag_values,
             array_agg(DISTINCT et.tag_id) as tag_ids,
             COUNT(DISTINCT et.tag_id) as tag_count
-          FROM events e
+          FROM valid_events e
           LEFT JOIN event_tags et ON e.id = et.event_id
           GROUP BY e.id
         )
@@ -303,10 +321,12 @@ export class RecommendationModel extends BaseModel<IEvent> {
           subcategory_id,
           et.tag_ids,
           et.tag_count
-        FROM events e
+        FROM valid_events e
         LEFT JOIN event_tags et ON e.id = et.event_id
         CROSS JOIN UNNEST(e.subcategories) as subcategory_id
-        WHERE ${conditions.join(' AND ')}
+        WHERE 
+          -- Only include events in user's preferred subcategories
+          subcategory_id = ANY($1)
         ORDER BY e.created_at DESC
         ${filters.limit ? `LIMIT ${filters.limit}` : ''}
         ${filters.page && filters.limit ? `OFFSET ${(filters.page - 1) * filters.limit}` : 

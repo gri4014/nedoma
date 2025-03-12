@@ -88,6 +88,18 @@ export class SwipeModel extends BaseModel<ISwipe> {
         LEFT JOIN event_tags et ON e.id = et.event_id
         WHERE s.user_id = $1
         ${direction ? 'AND s.direction = $2' : ''}
+        AND (
+          -- Keep events without dates
+          (e.event_dates IS NULL OR array_length(e.event_dates, 1) = 0)
+          OR
+          -- Only include events whose latest date is in the future
+          (
+            SELECT MAX(date_val) 
+            FROM (
+              SELECT (unnest(e.event_dates))::timestamp as date_val
+            ) as dates
+          ) > CURRENT_TIMESTAMP
+        )
         GROUP BY s.id, e.id
         ORDER BY s.created_at DESC
       `;

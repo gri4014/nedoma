@@ -162,8 +162,35 @@ export class RecommendationController {
         return;
       }
 
-      logger.info(`Successfully retrieved ${result.data.length} recommendations for user ${userId}`);
-      res.json(result);
+      // CRITICAL: Filter out events whose latest date has passed, but keep events without dates
+      // This is the most important filter and is applied first, before any other processing
+      const now = new Date();
+      
+      // Make sure result.data exists before filtering
+      const resultData = result.data || [];
+      const filteredResults = resultData.filter(item => {
+        const event = item.event;
+        
+        // Keep events without dates
+        if (!event.event_dates || event.event_dates.length === 0) {
+          return true;
+        }
+        
+        // Find the latest date in the event_dates array
+        const latestDate = new Date(Math.max(...event.event_dates.map(d => new Date(d).getTime())));
+        
+        // Only keep events whose latest date is in the future
+        return latestDate > now;
+      });
+
+      logger.info(`After date filtering: ${filteredResults.length} of ${resultData.length} events remain`);
+      
+      // Return the filtered results
+      res.json({
+        success: true,
+        data: filteredResults,
+        hasMore: filteredResults.length >= limit && resultData.length >= limit
+      });
     } catch (error) {
       logger.error('Error in getRecommendedEvents:', error);
       
@@ -216,7 +243,35 @@ export class RecommendationController {
         return;
       }
 
-      res.json(result);
+      // CRITICAL: Filter out events whose latest date has passed, but keep events without dates
+      // This is the most important filter and is applied first, before any other processing
+      const now = new Date();
+      
+      // Make sure result.data exists before filtering
+      const resultData = result.data || [];
+      const filteredResults = resultData.filter(item => {
+        const event = item.event;
+        
+        // Keep events without dates
+        if (!event.event_dates || event.event_dates.length === 0) {
+          return true;
+        }
+        
+        // Find the latest date in the event_dates array
+        const latestDate = new Date(Math.max(...event.event_dates.map(d => new Date(d).getTime())));
+        
+        // Only keep events whose latest date is in the future
+        return latestDate > now;
+      });
+
+      logger.info(`Daily digest after date filtering: ${filteredResults.length} of ${resultData.length} events remain`);
+      
+      // Return the filtered results
+      res.json({
+        success: true,
+        data: filteredResults,
+        hasMore: false
+      });
     } catch (error) {
       logger.error('Error in getDailyDigest:', error);
       res.status(500).json({
