@@ -8,7 +8,7 @@ interface SavedEventItemProps {
   onRemove: (eventId: string) => void;
 }
 
-const ItemContainer = styled.div`
+const ItemContainer = styled.div<{ $hasLink?: boolean }>`
   display: flex;
   flex-direction: column;
   background: #000000;
@@ -17,6 +17,12 @@ const ItemContainer = styled.div`
   position: relative;
   min-height: 200px;
   flex-shrink: 0;
+  cursor: ${props => props.$hasLink ? 'pointer' : 'default'};
+  transition: transform 0.2s;
+
+  &:hover {
+    transform: ${props => props.$hasLink ? 'scale(1.02)' : 'none'};
+  }
 
   @media (max-width: 600px) {
     min-height: auto;
@@ -190,9 +196,14 @@ const TagButton = styled.div`
 `;
 
 export const SavedEventItem: React.FC<SavedEventItemProps> = ({ event, onRemove }) => {
-  console.log('Event links:', event?.links);
+  const handleClick = (e: React.MouseEvent) => {
+    if (event?.links?.[0] && !e.defaultPrevented) {
+      window.open(event.links[0], '_blank', 'noopener noreferrer');
+    }
+  };
+
   return (
-    <ItemContainer>
+    <ItemContainer $hasLink={!!event?.links?.[0]} onClick={handleClick}>
       <TopSection>
         <ImageContainer
           $imageUrl={typeof event?.image_urls?.[0] === 'string' ? event.image_urls[0] : undefined}
@@ -207,7 +218,13 @@ export const SavedEventItem: React.FC<SavedEventItemProps> = ({ event, onRemove 
                 </LinkIconWrapper>
               )}
             </div>
-            <RemoveButton onClick={() => onRemove(event.id)}>×</RemoveButton>
+            <RemoveButton 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRemove(event.id);
+              }}
+            >×</RemoveButton>
           </Header>
           <MobileTopDetails>
             {event.display_dates && event.event_dates?.length > 0 && (
