@@ -14,7 +14,7 @@ export interface BaseEvent {
   long_description?: string;
   image_urls: (string | File)[];
   links: string[];
-  event_dates: Date[];
+  event_dates: string[];
   subcategories: string[];
   address?: string;
   is_active: boolean;

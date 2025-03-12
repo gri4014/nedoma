@@ -64,8 +64,8 @@ const ErrorText = styled.div`
 
 interface DateTimeFieldProps {
   label: string;
-  dates: Date[];
-  onChange: (dates: Date[]) => void;
+  dates: string[];
+  onChange: (dates: string[]) => void;
   error?: string;
   displayDates: boolean;
   onDisplayDatesChange: (display: boolean) => void;
@@ -83,13 +83,13 @@ const DateTimeField: React.FC<DateTimeFieldProps> = ({
     const date = new Date(value);
     if (!isNaN(date.getTime())) {
       const newDates = [...dates];
-      newDates[index] = date;
+      newDates[index] = date.toISOString();
       onChange(newDates);
     }
   };
 
   const handleAddDate = () => {
-    onChange([...dates, new Date()]);
+    onChange([...dates, new Date().toISOString()]);
   };
 
   const handleDeleteDate = (index: number) => {
@@ -124,7 +124,7 @@ const DateTimeField: React.FC<DateTimeFieldProps> = ({
               <DateInputContainer key={index}>
                 <Input
                   type="datetime-local"
-                  value={format(date, "yyyy-MM-dd'T'HH:mm")}
+                  value={format(new Date(date), "yyyy-MM-dd'T'HH:mm")}
                   onChange={(e) => handleDateChange(index, e.target.value)}
                 />
                 <DeleteButton onClick={() => handleDeleteDate(index)} type="button">

@@ -101,7 +101,7 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
   const [undoIsLoading, setUndoIsLoading] = useState(false);
 
   const debouncedFetchEvents = useDebounce(async () => {
-    if (!hasMoreEvents || loading || error) return;
+    if (loading) return;
 
     // Cancel any in-flight request
     if (abortControllerRef.current) {
@@ -111,15 +111,10 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
     
-    try {
-      if (retryCountRef.current >= MAX_RETRIES) {
-        setError('Превышено количество попыток загрузки. Пожалуйста, обновите страницу.');
-        setHasMoreEvents(false);
-        return;
-      }
+    setLoading(true);
+    setError(null);
 
-      setLoading(true);
-      setError(null);
+    try {      
       
       // Make a fresh copy of the swipedEventIds array to ensure we're using the latest data
       const currentSwipedIds = [...swipedEventIds];
@@ -183,16 +178,36 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     } finally {
       setLoading(false);
     }
-  }, 500); // Reduced from 2000ms to 500ms for smoother loading
+  }, 20000); // 20 second debounce for load throttling
 
   // Fetch more events when queue is getting low or empty
   useEffect(() => {
-    if (eventQueue.length < 3 && hasMoreEvents && !loading && !error && !noMoreCardsToShow) {
-      // Reset retry count when queue needs refill
-      retryCountRef.current = 0;
-      debouncedFetchEvents();
+    const checkForNewEvents = async () => {
+      if (eventQueue.length < 3 && !loading && !error) {
+        // Reset retry count when queue needs refill
+        retryCountRef.current = 0;
+        // If we previously had no more events, we might have new ones now
+        if (!hasMoreEvents) {
+          setHasMoreEvents(true);
+        }
+        debouncedFetchEvents();
+      }
+    };
+
+    checkForNewEvents();
+
+    // If we have no events, periodically check for new ones
+    let refreshInterval: NodeJS.Timeout | null = null;
+    if (eventQueue.length === 0 && !loading && !error) {
+      refreshInterval = setInterval(checkForNewEvents, 300000); // Check every 5 minutes
     }
-  }, [eventQueue.length, hasMoreEvents, loading, error, noMoreCardsToShow, debouncedFetchEvents]);
+
+    return () => {
+      if (refreshInterval) {
+        clearInterval(refreshInterval);
+      }
+    };
+  }, [eventQueue.length, loading, error, debouncedFetchEvents]);
 
   // Cleanup function to cancel any pending requests
   useEffect(() => {
@@ -256,12 +271,12 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
         }
         const events = response.data.map(rec => rec.event);
 
-        // If we got no events, show empty state
-        if (events.length === 0) {
-          setNoMoreCardsToShow(true);
-          setHasMoreEvents(false);
-          return;
-        }
+      // If we got no events
+      if (events.length === 0) {
+        setNoMoreCardsToShow(true);
+        // Don't set hasMoreEvents to false here, allow it to keep checking
+        return;
+      }
         
         // Filter out any swiped events and mark them as seen
         const filteredEvents = events.filter(event => {
@@ -281,7 +296,8 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
           setNoMoreCardsToShow(true);
           setHasMoreEvents(false);
         } else {
-          setHasMoreEvents(events.length === 6); // Changed from 3 to 6
+          // Keep hasMoreEvents true to allow future checks for new events
+          setHasMoreEvents(true);
         }
         
       } catch (err: any) {
@@ -399,11 +415,11 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     );
   }
 
-  // Show empty state only when we're certain there are no more events
-  if (noMoreCardsToShow && eventQueue.length === 0 && !loading && !initialLoading) {
+  // Show empty state when no events are available
+  if (eventQueue.length === 0 && !loading && !initialLoading) {
     return (
       <DeckContainer>
-        <EmptyStateMessage>На данный момент это все карточки</EmptyStateMessage>
+        <EmptyStateMessage>На данный момент нет новых карточек. Новые мероприятия автоматически появятся здесь.</EmptyStateMessage>
       </DeckContainer>
     );
   }

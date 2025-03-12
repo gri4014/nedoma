@@ -84,7 +84,7 @@ const EventForm: React.FC<EventFormProps> = ({
     return {
       ...defaultFormData,
       ...initialData,
-      event_dates: initialData.event_dates?.map(date => new Date(date)) || [],
+      event_dates: initialData.event_dates || [],
       price_range: initialData.price_range || { min: 0, max: 0 },
       subcategories: initialData.subcategories || [],
       tags: initialData.tags || {},
@@ -148,7 +148,7 @@ const EventForm: React.FC<EventFormProps> = ({
 
       submitData.append('links', JSON.stringify(formData.links || []));
       submitData.append('event_dates', JSON.stringify(
-        formData.event_dates.map(date => date instanceof Date ? date.toISOString() : date)
+        formData.event_dates
       ));
       submitData.append('subcategories', JSON.stringify(formData.subcategories || []));
       submitData.append('tags', JSON.stringify(formData.tags || {}));

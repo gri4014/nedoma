@@ -73,23 +73,59 @@ export const SavedEventsList: React.FC<SavedEventsListProps> = ({
     }
   }, [onEventRemoved]);
 
-  // Filter out events whose latest date has passed, keep events without dates
+  // Keep events that have at least one future date or no dates
   const filteredEvents = events.filter(event => {
     if (!event.event_dates || event.event_dates.length === 0) {
       return true; // Keep events without dates
     }
-    const latestDate = Math.max(...event.event_dates.map(d => new Date(d).getTime()));
-    return latestDate >= Date.now();
+    
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const nowTime = now.getTime();
+    
+    // Check if any date is in the future
+    return event.event_dates.some(dateStr => {
+      const date = new Date(dateStr);
+      date.setHours(0, 0, 0, 0);
+      return date.getTime() >= nowTime;
+    });
   });
 
   if (filteredEvents.length === 0) {
     return <EmptyStateMessage>{emptyMessage}</EmptyStateMessage>;
   }
 
-  // Group events by date
+  // Find the closest future/current date for an event
+  const getClosestFutureDate = (dates: string[] | undefined): Date | null => {
+    if (!dates || dates.length === 0) return null;
+    
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const nowTime = now.getTime();
+    
+    const futureDatesWithTimestamps = dates
+      .map(dateStr => {
+        const date = new Date(dateStr);
+        date.setHours(0, 0, 0, 0);
+        return { date, timestamp: date.getTime() };
+      })
+      .filter(({ timestamp }) => timestamp >= nowTime);
+    
+    if (futureDatesWithTimestamps.length === 0) return null;
+    
+    // Find the earliest future/current date
+    const earliest = futureDatesWithTimestamps.reduce((min, curr) => 
+      curr.timestamp < min.timestamp ? curr : min
+    );
+    
+    return earliest.date;
+  };
+
+  // Group events by their closest future/current date
   const groupedEvents = filteredEvents.reduce<DateGroup[]>((groups, event) => {
-    const firstDate = event.event_dates?.[0];
-    if (!firstDate) {
+    const closestDate = getClosestFutureDate(event.event_dates);
+    
+    if (!closestDate) {
       // Find or create the "no date" group
       const noDateGroup = groups.find(g => g.date === null);
       if (noDateGroup) {
@@ -104,17 +140,14 @@ export const SavedEventsList: React.FC<SavedEventsListProps> = ({
       return groups;
     }
 
-    const date = new Date(firstDate);
-    date.setHours(0, 0, 0, 0); // Normalize to start of day for grouping
-
     // Find existing group or create new one
-    const existingGroup = groups.find(g => g.date && g.date.getTime() === date.getTime());
+    const existingGroup = groups.find(g => g.date && g.date.getTime() === closestDate.getTime());
     if (existingGroup) {
       existingGroup.events.push(event);
     } else {
       groups.push({
-        date,
-        label: format(date, 'd MMMM', { locale: ru }),
+        date: closestDate,
+        label: format(closestDate, 'd MMMM', { locale: ru }),
         events: [event]
       });
     }

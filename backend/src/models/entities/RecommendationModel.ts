@@ -219,9 +219,7 @@ export class RecommendationModel extends BaseModel<IEvent> {
       const finalSettings = { ...this.defaultSettings, ...settings };
 
       // Build query conditions
-  const conditions: string[] = [
-    'e.is_active = true'
-  ];
+  const conditions: string[] = [];
   const values: any[] = [];
   let paramCount = 1;
 
@@ -267,18 +265,12 @@ export class RecommendationModel extends BaseModel<IEvent> {
       }
 
       // Get events with their tags that match user's subcategory preferences
+      // Handle excluded event IDs
       const excludeIds = filters.excludeEventIds?.filter(Boolean) || [];
       if (excludeIds.length > 0) {
-        if (excludeIds.length > 500) {
-          // For large exclusion lists, use array contains operator for better performance
-          conditions.push(`NOT (e.id = ANY($${paramCount}))`);
-          values.push(excludeIds);
-          paramCount++;
-        } else {
-          // For smaller lists, use standard NOT IN syntax
-          conditions.push(`e.id NOT IN (${excludeIds.map(() => `$${paramCount++}`).join(', ')})`);
-          values.push(...excludeIds);
-        }
+        conditions.push(`NOT (e.id = ANY($${paramCount}))`);
+        values.push(excludeIds);
+        paramCount++;
       }
 
       // First, let's create a direct SQL query that exactly matches the JavaScript filtering logic
@@ -327,6 +319,7 @@ export class RecommendationModel extends BaseModel<IEvent> {
         WHERE 
           -- Only include events in user's preferred subcategories
           subcategory_id = ANY($1)
+          ${conditions.length > 0 ? `AND ${conditions.join(' AND ')}` : ''}
         ORDER BY e.created_at DESC
         ${filters.limit ? `LIMIT ${filters.limit}` : ''}
         ${filters.page && filters.limit ? `OFFSET ${(filters.page - 1) * filters.limit}` : 
