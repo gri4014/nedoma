@@ -14,7 +14,7 @@ export const createEventSchema = z.object({
   image_urls: z.array(z.string().url()).max(8, 'Maximum 8 images allowed'),
   links: z.array(z.string().url()),
   event_dates: z.array(z.date()).default([]),
-  address: z.string().min(1, 'Address is required'),
+  address: z.string().optional(),
   is_active: z.boolean(),
   is_free: z.boolean(),
   price_range: z.union([priceRangeSchema, z.null()]),

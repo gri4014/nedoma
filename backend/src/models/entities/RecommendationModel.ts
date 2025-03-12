@@ -219,9 +219,16 @@ export class RecommendationModel extends BaseModel<IEvent> {
       const finalSettings = { ...this.defaultSettings, ...settings };
 
       // Build query conditions
-      const conditions: string[] = ['e.is_active = true'];
-      const values: any[] = [];
-      let paramCount = 1;
+  const conditions: string[] = [
+    'e.is_active = true',
+    `(
+      array_length(e.event_dates, 1) = 0
+      OR
+      coalesce((SELECT MAX(d) FROM unnest(e.event_dates) d), null) > CURRENT_TIMESTAMP
+    )`
+  ];
+  const values: any[] = [];
+  let paramCount = 1;
 
       // Show events that were created within last 30 days
       conditions.push(`e.created_at >= (CURRENT_TIMESTAMP - INTERVAL '30 days')`);

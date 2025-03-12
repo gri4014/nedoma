@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
 import { IEvent, CreateEventInput } from '../../../types/event';
-import { CategoryTree } from '../../../types/category';
-import { useApi } from '../../../hooks/useApi';
+import { LoadingSpinner } from '../../common/LoadingSpinner';
 import { Input } from '../../common/Input';
 import { TextArea } from '../../common/TextArea';
 import { Button } from '../../common/Button';
-import { LoadingSpinner } from '../../common/LoadingSpinner';
 import ImageUploadField from './ImageUploadField';
 import DateTimeField from './DateTimeField';
 import PriceField from './PriceField';
@@ -53,7 +51,6 @@ interface FormErrors {
   long_description?: string;
   image_urls?: string;
   event_dates?: string;
-  address?: string;
   subcategories?: string;
   tags?: string;
   submit?: string;
@@ -66,7 +63,6 @@ const defaultFormData: CreateEventInput = {
   image_urls: [],
   links: [],
   event_dates: [],
-  address: '',
   is_active: true,
   is_free: false,
   price_range: { min: 0, max: 0 },
@@ -111,15 +107,8 @@ const EventForm: React.FC<EventFormProps> = ({
       newErrors.short_description = 'Введите краткое описание';
     }
 
-    // long_description is now optional, so no validation needed
-
     if (!formData.image_urls?.length) {
       newErrors.image_urls = 'Добавьте хотя бы одно изображение';
-    }
-
-
-    if (!formData.address?.trim()) {
-      newErrors.address = 'Введите адрес';
     }
 
     if (!formData.subcategories?.length) {
@@ -142,24 +131,21 @@ const EventForm: React.FC<EventFormProps> = ({
 
     const submitTimeout = setTimeout(() => {
       setIsSubmitting(false);
-    }, 10000); // Timeout after 10 seconds
+    }, 10000);
 
     try {
-      // Create FormData object
       const submitData = new FormData();
 
-      // Basic string fields
       submitData.append('name', formData.name);
       submitData.append('short_description', formData.short_description);
       if (formData.long_description) {
         submitData.append('long_description', formData.long_description);
       }
-      submitData.append('address', formData.address);
       submitData.append('display_dates', String(formData.display_dates));
       submitData.append('is_active', String(formData.is_active));
       submitData.append('is_free', String(formData.is_free));
+      submitData.append('address', '-'); // Always send hyphen as default address
 
-      // Ensure proper JSON stringification for arrays and objects
       submitData.append('links', JSON.stringify(formData.links || []));
       submitData.append('event_dates', JSON.stringify(
         formData.event_dates.map(date => date instanceof Date ? date.toISOString() : date)
@@ -167,7 +153,6 @@ const EventForm: React.FC<EventFormProps> = ({
       submitData.append('subcategories', JSON.stringify(formData.subcategories || []));
       submitData.append('tags', JSON.stringify(formData.tags || {}));
 
-      // Price range validation and appending
       if (!formData.is_free && formData.price_range) {
         const { min, max } = formData.price_range;
         if (min >= 0 && max >= min) {
@@ -178,7 +163,6 @@ const EventForm: React.FC<EventFormProps> = ({
         }
       }
 
-      // Handle images
       const files: File[] = [];
       const existingUrls: string[] = [];
 
@@ -190,12 +174,10 @@ const EventForm: React.FC<EventFormProps> = ({
         }
       });
 
-      // Append files for upload
       files.forEach(file => {
         submitData.append('images', file);
       });
       
-      // Send existing image URLs as JSON array
       if (existingUrls.length > 0) {
         submitData.append('image_urls', JSON.stringify(existingUrls));
       }
@@ -220,7 +202,6 @@ const EventForm: React.FC<EventFormProps> = ({
           value={formData.name}
           onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
           error={errors.name}
-          required
         />
 
         <div>
@@ -263,14 +244,6 @@ const EventForm: React.FC<EventFormProps> = ({
         />
 
         <Input
-          label="Адрес"
-          value={formData.address}
-          onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-          error={errors.address}
-          required
-        />
-
-        <Input
           label="Ссылка (необязательно)"
           value={formData.links[0] || ''}
           onChange={(e) => {
@@ -308,7 +281,7 @@ const EventForm: React.FC<EventFormProps> = ({
             setFormData(prev => ({ 
               ...prev, 
               subcategories,
-              tags: {}, // Reset tags when subcategories change
+              tags: {},
             }));
           }}
           error={errors.subcategories}

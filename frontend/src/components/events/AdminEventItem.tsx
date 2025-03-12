@@ -10,10 +10,18 @@ interface AdminEventItemProps {
   onEdit: (eventId: string) => void;
 }
 
-const ItemContainer = styled.div`
+const isPastEvent = (event: IEvent): boolean => {
+  if (!event.event_dates || event.event_dates.length === 0) {
+    return false;  // Events without dates are not past
+  }
+  const latestDate = Math.max(...event.event_dates.map(d => new Date(d).getTime()));
+  return latestDate < Date.now();
+};
+
+const ItemContainer = styled.div<{ $isPastEvent?: boolean }>`
   display: flex;
   flex-direction: column;
-  background: #000000;
+  background: ${props => props.$isPastEvent ? '#2C080A' : '#000000'};
   border-radius: 12px;
   overflow: hidden;
   position: relative;
@@ -206,7 +214,7 @@ export const AdminEventItem: React.FC<AdminEventItemProps> = ({ event, onDelete,
   };
 
   return (
-    <ItemContainer>
+    <ItemContainer $isPastEvent={isPastEvent(event)}>
       <TopSection>
         <ImageContainer
           $imageUrl={typeof event?.image_urls?.[0] === 'string' ? event.image_urls[0] : undefined}

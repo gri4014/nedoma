@@ -331,10 +331,16 @@ export class EventModel extends BaseModel<IEvent, 'tags'> {
 
       // Tag filtering
       if (filters.tags && Object.keys(filters.tags).length > 0) {
-        const tagConditions = Object.entries(filters.tags).map(([tagId, values]) => {
+        const tagConditions = Object.entries(filters.tags).map(([tagId, tagValues]) => {
           values.push(tagId);
           paramCount++;
-          return `(et.tag_id = $${paramCount} AND et.selected_values && $${paramCount - 1})`;
+          const tagIdParam = paramCount;
+          
+          values.push(tagValues);
+          paramCount++;
+          const valuesParam = paramCount;
+          
+          return `(et.tag_id = $${tagIdParam} AND et.selected_values && $${valuesParam})`;
         });
         conditions.push(`EXISTS (
           SELECT 1 FROM event_tags et 

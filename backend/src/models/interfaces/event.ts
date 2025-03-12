@@ -8,7 +8,7 @@ export interface IEvent {
   image_urls: string[];
   links: string[];
   event_dates: Date[];
-  address: string;
+  address?: string;
   is_active: boolean;
   is_free: boolean;
   price_range: {
@@ -29,7 +29,7 @@ export interface ICreateEvent {
   image_urls: string[];
   links: string[];
   event_dates: Date[];
-  address: string;
+  address?: string;
   is_active: boolean;
   is_free: boolean;
   price_range: {

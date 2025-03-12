@@ -16,7 +16,7 @@ export interface BaseEvent {
   links: string[];
   event_dates: Date[];
   subcategories: string[];
-  address: string;
+  address?: string;
   is_active: boolean;
   is_free: boolean;
   price_range: PriceRange | null;
