@@ -4,7 +4,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { createServer } from 'http';
 
-dotenv.config();
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 
 const app: Application = express();
 const httpServer = createServer(app);
