@@ -223,9 +223,6 @@ export class RecommendationModel extends BaseModel<IEvent> {
   const values: any[] = [];
   let paramCount = 1;
 
-      // Show events that were created within last 30 days
-      conditions.push(`e.created_at >= (CURRENT_TIMESTAMP - INTERVAL '30 days')`);
-      
       // Add condition for selected subcategories
       conditions.push(`subcategory_id = ANY($${paramCount})`);
       values.push(
@@ -296,13 +293,7 @@ export class RecommendationModel extends BaseModel<IEvent> {
           SELECT e.*
           FROM events e
           JOIN future_event_dates fed ON e.id = fed.id
-          WHERE 
-            -- Event is either dateless OR has future dates
-            (fed.has_no_dates = true OR fed.latest_date > CURRENT_TIMESTAMP)
-            -- Only active events
-            AND e.is_active = true
-            -- Created within last 30 days
-            AND e.created_at >= (CURRENT_TIMESTAMP - INTERVAL '30 days')
+          WHERE e.is_active = true
         ),
         event_tags AS (
           SELECT 

@@ -3,7 +3,7 @@ import { useDebounce } from '../../hooks/useDebounce';
 import styled from 'styled-components';
 import { motion, AnimatePresence } from 'framer-motion';
 import { IEvent } from '../../types/event';
-import { IRecommendationResponse, IRecommendationScore } from '../../types/recommendation';
+import { IRecommendationResponse, IRecommendationScore, IRecommendationResult } from '../../types/recommendation';
 import { userEventApi } from '../../services/api';
 import { SwipeCard } from './SwipeCard';
 import { EmptyStateMessage } from '../common/EmptyStateMessage';
@@ -50,7 +50,6 @@ interface CardDeckProps {
   onSwipeUp?: (event: IEvent) => void;
 }
 
-// Define the imperative handle interface
 export interface CardDeckHandle {
   handleUndo: () => Promise<void>;
 }
@@ -85,7 +84,7 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
   onSwipeRight,
   onSwipeUp
 }, ref) => {
-  const [eventQueue, setEventQueue] = useState<IEvent[]>([]);
+  const [eventQueue, setEventQueue] = useState<IRecommendationResult[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [swipedEventIds, setSwipedEventIds] = useState<string[]>([]);
@@ -103,64 +102,56 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
   const debouncedFetchEvents = useDebounce(async () => {
     if (loading) return;
 
-    // Cancel any in-flight request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
 
-    // Create new abort controller for this request
     abortControllerRef.current = new AbortController();
-    
     setLoading(true);
     setError(null);
 
     try {      
-      
-      // Make a fresh copy of the swipedEventIds array to ensure we're using the latest data
       const currentSwipedIds = [...swipedEventIds];
       const response = await userEventApi.getRecommendedEvents(currentPage, 3, currentSwipedIds);
       if (!response.success) {
         throw new Error(response.error || 'Failed to get recommendations');
       }
-      const events = response.data.map(rec => rec.event);
 
-      // Update hasMoreEvents based on both response and filtering
-      if (events.length === 0) {
+      if (!response.data || response.data.length === 0) {
         setHasMoreEvents(false);
         if (eventQueue.length === 0) {
           setNoMoreCardsToShow(true);
         }
         return;
       }
-      
-      if (!events || events.length === 0) {
-        setHasMoreEvents(false);
-        return;
-      }
 
-      // Filter out events we've already seen or swiped
-      // Double check to ensure we don't show any previously swiped events
-      const newEvents = events.filter(event => 
-        !seenEventIds.has(event.id) && 
-        !swipedEventIds.includes(event.id)
+      const newEvents = response.data.filter(item => 
+        !seenEventIds.has(item.event.id) && 
+        !swipedEventIds.includes(item.event.id)
       );
 
       if (newEvents.length > 0) {
-        // Mark these events as seen
-        newEvents.forEach(event => seenEventIds.add(event.id));
+        newEvents.forEach(item => seenEventIds.add(item.event.id));
         
         setEventQueue(prev => {
-          const updatedQueue = [...prev, ...newEvents];
-          if (updatedQueue.length > 0) {
-            setHasMoreEvents(true); // Keep loading while we have events
+          // Sort new events by score before adding to queue
+          const combined = [...prev, ...newEvents].sort((a, b) => {
+            const scoreDiff = b.score.tag_match_score - a.score.tag_match_score;
+            if (Math.abs(scoreDiff) > 0.001) {
+              return scoreDiff;
+            }
+            return new Date(b.event.created_at).getTime() - new Date(a.event.created_at).getTime();
+          });
+
+          if (combined.length > 0) {
+            setHasMoreEvents(true);
             setNoMoreCardsToShow(false);
           }
-          return updatedQueue;
+          return combined;
         });
         setCurrentPage(prev => prev + 1);
         retryCountRef.current = 0;
-      } else if (events.length === 0 || retryCountRef.current >= MAX_RETRIES) {
-        // Only mark as no more events if we truly got zero events or hit retry limit
+      } else if (response.data.length === 0 || retryCountRef.current >= MAX_RETRIES) {
         setHasMoreEvents(false);
         if (eventQueue.length === 0) {
           setNoMoreCardsToShow(true);
@@ -178,15 +169,12 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     } finally {
       setLoading(false);
     }
-  }, 20000); // 20 second debounce for load throttling
+  }, 20000);
 
-  // Fetch more events when queue is getting low or empty
   useEffect(() => {
     const checkForNewEvents = async () => {
-      if (eventQueue.length < 3 && !loading && !error) {
-        // Reset retry count when queue needs refill
+      if (!loading && !error) {
         retryCountRef.current = 0;
-        // If we previously had no more events, we might have new ones now
         if (!hasMoreEvents) {
           setHasMoreEvents(true);
         }
@@ -194,13 +182,11 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
       }
     };
 
-    checkForNewEvents();
-
-    // If we have no events, periodically check for new ones
-    let refreshInterval: NodeJS.Timeout | null = null;
-    if (eventQueue.length === 0 && !loading && !error) {
-      refreshInterval = setInterval(checkForNewEvents, 300000); // Check every 5 minutes
+    if (eventQueue.length < 3) {
+      checkForNewEvents();
     }
+
+    const refreshInterval = setInterval(checkForNewEvents, 180000);
 
     return () => {
       if (refreshInterval) {
@@ -209,7 +195,6 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     };
   }, [eventQueue.length, loading, error, debouncedFetchEvents]);
 
-  // Cleanup function to cancel any pending requests
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
@@ -218,26 +203,12 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     };
   }, []);
 
-  // Load previously swiped events
   const loadPreviousSwipes = async () => {
     try {
-      // Get left swipes through a direct API call (if available)
       let leftSwipeIds: string[] = [];
-      try {
-        // If your API has a method for getting left swipes, use it here
-        // The current API doesn't expose this, so we'll use an empty array
-        // leftSwipeIds = (await userEventApi.getLeftSwipedEvents()).map(e => e.id);
-      } catch (err) {
-        console.error('Error loading left swipes:', err);
-      }
-      
-      // Get interested events (right swipes)
       const interestedEvents = await userEventApi.getInterestedEvents();
-      
-      // Get planning events (up swipes)
       const planningEvents = await userEventApi.getPlanningEvents();
       
-      // Combine all swiped event IDs
       return [...leftSwipeIds, 
               ...interestedEvents.map(event => event.id), 
               ...planningEvents.map(event => event.id)];
@@ -253,37 +224,27 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
         setInitialLoading(true);
         setError(null);
         
-        // Fetch all previously swiped events BEFORE loading recommendations
         const previouslySwipedIds = await loadPreviousSwipes();
         
-        // Update our state with all known swiped events
         setSwipedEventIds(prev => {
-          // Create a Set to deduplicate any repeated IDs
           const uniqueIds = new Set([...prev, ...previouslySwipedIds]);
           return [...uniqueIds];
         });
         
-        // Now fetch recommendations, excluding all known swiped events
-        // Wait a moment to ensure state is updated
         const response = await userEventApi.getRecommendedEvents(1, 6, previouslySwipedIds);
         if (!response.success) {
           throw new Error(response.error || 'Failed to get recommendations');
         }
-        const events = response.data.map(rec => rec.event);
 
-      // If we got no events
-      if (events.length === 0) {
-        setNoMoreCardsToShow(true);
-        // Don't set hasMoreEvents to false here, allow it to keep checking
-        return;
-      }
+        if (!response.data || response.data.length === 0) {
+          setNoMoreCardsToShow(true);
+          return;
+        }
         
-        // Filter out any swiped events and mark them as seen
-        const filteredEvents = events.filter(event => {
-          // Strict filtering to ensure we don't show already swiped events
-          const alreadySwiped = swipedEventIds.includes(event.id);
+        const filteredEvents = response.data.filter(item => {
+          const alreadySwiped = swipedEventIds.includes(item.event.id);
           if (!alreadySwiped) {
-            seenEventIds.add(event.id); // Only mark unswiped events as seen
+            seenEventIds.add(item.event.id);
           }
           return !alreadySwiped;
         });
@@ -291,12 +252,10 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
         setEventQueue(filteredEvents);
         setCurrentPage(2);
         
-        // If we got no events after filtering, show empty state
         if (filteredEvents.length === 0) {
           setNoMoreCardsToShow(true);
           setHasMoreEvents(false);
         } else {
-          // Keep hasMoreEvents true to allow future checks for new events
           setHasMoreEvents(true);
         }
         
@@ -313,34 +272,30 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
   const handleSwipe = async (direction: 'left' | 'right' | 'up') => {
     if (eventQueue.length === 0) return;
 
-    const currentEvent = eventQueue[0];
+    const currentItem = eventQueue[0];
     
     try {
       switch (direction) {
         case 'left':
-          await userEventApi.swipeLeft(currentEvent.id);
-          if (onSwipeLeft) onSwipeLeft(currentEvent);
+          await userEventApi.swipeLeft(currentItem.event.id);
+          if (onSwipeLeft) onSwipeLeft(currentItem.event);
           break;
         case 'right':
-          await userEventApi.swipeRight(currentEvent.id);
-          if (onSwipeRight) onSwipeRight(currentEvent);
+          await userEventApi.swipeRight(currentItem.event.id);
+          if (onSwipeRight) onSwipeRight(currentItem.event);
           break;
         case 'up':
-          await userEventApi.swipeUp(currentEvent.id);
-          if (onSwipeUp) onSwipeUp(currentEvent);
+          await userEventApi.swipeUp(currentItem.event.id);
+          if (onSwipeUp) onSwipeUp(currentItem.event);
           break;
       }
       
-      // Add swiped event to tracked IDs and mark as seen
-      setSwipedEventIds(prev => [...prev, currentEvent.id]);
-      seenEventIds.add(currentEvent.id);
-      
-      // Store the last swiped event for possible undo
-      setLastSwipedEvent(currentEvent);
+      setSwipedEventIds(prev => [...prev, currentItem.event.id]);
+      seenEventIds.add(currentItem.event.id);
+      setLastSwipedEvent(currentItem.event);
       
       setEventQueue(prev => {
         const newQueue = prev.slice(1);
-        // If queue will be empty and no more events, show end message
         if (newQueue.length === 0 && !hasMoreEvents) {
           setNoMoreCardsToShow(true);
         }
@@ -359,26 +314,35 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
       setUndoIsLoading(true);
       setError(null);
       
-      // Call the API to undo the last swipe
       const result = await userEventApi.undoLastSwipe();
       
       if (result && result.event_id === lastSwipedEvent.id) {
-        // Remove this event from the swiped events list
         setSwipedEventIds(prev => prev.filter(id => id !== lastSwipedEvent.id));
         
-        // Add the event back to the front of the queue
-        setEventQueue(prev => [lastSwipedEvent, ...prev]);
+        // Make a recommendation call to get the score for this event
+        const response = await userEventApi.getRecommendedEvents(1, 1, []);
+        if (response.success && response.data.length > 0) {
+          const matchingEvent = response.data.find(item => item.event.id === lastSwipedEvent.id);
+          if (matchingEvent) {
+            setEventQueue(prev => [matchingEvent, ...prev]);
+          } else {
+            // Fallback: add event without score if not found in recommendations
+            setEventQueue(prev => [{
+              event: lastSwipedEvent,
+              score: {
+                event_id: lastSwipedEvent.id,
+                subcategory_id: lastSwipedEvent.subcategories[0],
+                tag_match_score: 0.5,
+                has_matching_tags: false
+              }
+            }, ...prev]);
+          }
+        }
         
-        // Reset the last swiped event
         setLastSwipedEvent(null);
-        
-        // Make sure we're not showing the empty state
         setNoMoreCardsToShow(false);
       } else {
-        // Handle case where API might have returned a different event
         console.warn('Undo returned a different event ID than expected');
-        
-        // Refresh the queue instead of restoring a specific event
         if (eventQueue.length < 3) {
           debouncedFetchEvents();
         }
@@ -391,7 +355,6 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     }
   };
   
-  // Expose methods to parent components via ref
   useImperativeHandle(ref, () => ({
     handleUndo: async () => {
       return handleUndo();
@@ -406,7 +369,6 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     );
   }
 
-  // Show error only if we have no events to display
   if (error && eventQueue.length === 0) {
     return (
       <DeckContainer>
@@ -415,7 +377,6 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     );
   }
 
-  // Show empty state when no events are available
   if (eventQueue.length === 0 && !loading && !initialLoading) {
     return (
       <DeckContainer>
@@ -428,9 +389,9 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
     <DeckContainer>
       <CardContainer>
         <AnimatePresence initial={false}>
-          {eventQueue.slice(0, 3).map((event, index) => (
+          {eventQueue.slice(0, 3).map((item, index) => (
             <StackedCardWrapper
-              key={event.id}
+              key={item.event.id}
               $index={index}
               custom={index}
               variants={cardVariants}
@@ -440,7 +401,7 @@ export const CardDeck = forwardRef<CardDeckHandle, CardDeckProps>(({
               style={{ zIndex: 10 + (eventQueue.length - index) }}
             >
               <SwipeCard 
-                event={event}
+                event={item.event}
                 onSwipe={handleSwipe}
                 active={index === 0}
               />

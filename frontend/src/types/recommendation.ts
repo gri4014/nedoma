@@ -22,12 +22,14 @@ export interface IRecommendationScore {
   has_matching_tags: boolean; // Whether this event has any matching tag preferences
 }
 
+export interface IRecommendationResult {
+  event: import('./event').IEvent;
+  score: IRecommendationScore;
+}
+
 export interface IRecommendationResponse {
   success: boolean;
-  data: Array<{
-    event: import('./event').IEvent;
-    score: IRecommendationScore;
-  }>;
+  data: IRecommendationResult[];
   hasMore: boolean;
   error?: string;
 }
