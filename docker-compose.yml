@@ -3,11 +3,12 @@ version: '3.8'
 services:
   db:
     image: postgres:14
+    platform: linux/amd64
     container_name: nedoma_db
     environment:
       POSTGRES_DB: nedoma_copy
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: GgvpIzikatka228!
     volumes:
       - ./docker/postgres-data:/var/lib/postgresql/data
     ports:
