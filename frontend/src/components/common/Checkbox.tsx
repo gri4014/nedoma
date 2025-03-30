@@ -79,36 +79,55 @@ interface CheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
-export const Checkbox: React.FC<CheckboxProps> = ({ label, checked, onChange, name, id, ...props }) => {
-  const checkboxId = id || `checkbox-${name}`;
-  
-  const handleClick = () => {
+export const Checkbox: React.FC<CheckboxProps> = ({ label, checked, onChange, name, id, disabled, ...props }) => {
+  const checkboxId = id || `checkbox-${name || label}`; // Ensure a unique ID
+
+  // Explicit handler for the container click
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (disabled) return; // Do nothing if disabled
+
+    // Prevent the click from propagating further or triggering default actions
+    e.stopPropagation();
+    e.preventDefault();
+
     if (onChange) {
-      const event = {
+      // Simulate the change event that the hidden input would normally trigger
+      const syntheticEvent = {
         target: {
           type: 'checkbox',
-          name,
-          checked: !checked,
+          name: name,
           id: checkboxId,
+          checked: !checked, // Toggle the state
+          value: props.value?.toString() ?? '', // Include value if present
+          // Add other properties if needed by the onChange handler
         },
-      } as React.ChangeEvent<HTMLInputElement>;
-      onChange(event);
+        // Add other event properties if needed
+        stopPropagation: () => {},
+        preventDefault: () => {},
+        // ... other event methods/properties
+      } as unknown as React.ChangeEvent<HTMLInputElement>; // Type assertion might be needed
+
+      onChange(syntheticEvent);
     }
   };
 
+
   return (
-    <CheckboxContainer>
+    // Add onClick to the container
+    <CheckboxContainer onClick={handleContainerClick}>
       <CheckboxWrapper>
-        <HiddenCheckbox 
+        <HiddenCheckbox
           id={checkboxId}
-          checked={checked} 
-          onChange={onChange}
+          checked={!!checked}
+          onChange={onChange} // Keep original onChange for accessibility/form submission
           name={name}
-          {...props} 
+          disabled={disabled}
+          {...props}
         />
         <StyledCheckbox checked={!!checked} />
       </CheckboxWrapper>
-      <Label htmlFor={checkboxId}>{label}</Label>
+      {/* The label click is now handled by the container's onClick */}
+      <Label>{label}</Label>
     </CheckboxContainer>
   );
 };

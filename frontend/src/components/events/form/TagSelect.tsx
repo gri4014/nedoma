@@ -165,7 +165,9 @@ const TagSelect: React.FC<TagSelectProps> = ({
         <TagGroup>
           {filteredTags.map(tag => (
             <TagSubGroup key={tag.id}>
-              <Label>{tag.name}</Label>
+              <Label> 
+                {tag.name}
+              </Label>
               <ValueGroup>
                 {tag.possible_values.map(val => (
                   <Checkbox
