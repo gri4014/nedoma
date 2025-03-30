@@ -44,6 +44,24 @@ const LoadingOverlay = styled.div`
   color: #007bff;
 `;
 
+const InstructionText = styled.div`
+  text-align: center;
+  padding: 16px;
+  background: #F9F7FE;
+  margin-top: 50px;
+
+  h2 {
+    font-size: 18px;
+    margin: 0 0 8px 0;
+  }
+
+  p {
+    font-size: 14px;
+    margin: 0;
+    color: #666;
+  }
+`;
+
 const Container = styled.div`
   width: 100vw;
   height: 100vh;
@@ -265,6 +283,10 @@ const BubblesPage = () => {
         </LoadingOverlay>
       )}
       {error && <ErrorMessage>{error}</ErrorMessage>}
+      <InstructionText>
+        <h2>Расскажи, что тебе нравится</h2>
+        <p>Нажми 1 раз на интересные тебе категории или 2 раза на категории, которые ты очень любишь</p>
+      </InstructionText>
       <IframeContainer>
         <BubbleFrame
           id="bubbleFrame"
